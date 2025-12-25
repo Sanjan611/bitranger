@@ -40,3 +40,6 @@ test/*.js
 *.map
 
 ASSIGNMENT.md
+
+# BAML
+baml_client/
