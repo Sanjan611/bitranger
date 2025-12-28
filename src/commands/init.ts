@@ -11,8 +11,6 @@ export function initCommand(program: Command) {
     .option('--path <path>', 'Repository root path', process.cwd())
     .option('--project-name <name>', 'Project name')
     .option('--domains <list>', 'Comma-separated list of default domains')
-    .option('--gitignore', 'Add .bitranger to .gitignore', true)
-    .option('--no-gitignore', 'Do not add .bitranger to .gitignore')
     .option('--agent <agent>', 'Generate agent workflow rules (cursor, claude)')
     .action(async (options) => {
       try {
@@ -38,28 +36,6 @@ export function initCommand(program: Command) {
             defaultDomains,
           },
         });
-
-        // Add to .gitignore if requested
-        if (options.gitignore) {
-          const gitignorePath = path.join(options.path, '.gitignore');
-          try {
-            let gitignoreContent = '';
-            try {
-              gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
-            } catch {
-              // File doesn't exist, that's fine
-            }
-
-            if (!gitignoreContent.includes('.bitranger')) {
-              const newContent = gitignoreContent
-                ? `${gitignoreContent.trimEnd()}\n\n# bitranger context tree\n.bitranger/\n`
-                : '# bitranger context tree\n.bitranger/\n';
-              await fs.writeFile(gitignorePath, newContent, 'utf-8');
-            }
-          } catch (error) {
-            console.warn('Warning: Could not update .gitignore');
-          }
-        }
 
         // Generate agent workflow rules if requested
         if (options.agent === 'cursor') {
