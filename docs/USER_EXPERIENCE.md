@@ -6,6 +6,11 @@
 
 Unlike cloud-based solutions, bitranger stores all context locally in your repository under the `.bitranger/` folder, giving you complete control over your project knowledge.
 
+The context tree structure is inspired by [ByteRover](https://docs.byterover.dev/beta/context-tree/local-space-structure), using:
+- Six default domains (code_style, testing, structure, design, compliance, bug_fixes)
+- Standardized `context.md` files at topic and subtopic levels
+- Relations for graph-like knowledge navigation
+
 ---
 
 ## Installation
@@ -35,10 +40,10 @@ bitranger init
 bitranger status
 
 # Start adding context
-bitranger curate "Our authentication uses JWT tokens with refresh token rotation"
+bitranger curate "Our API error handling uses custom error classes with structured JSON responses"
 
 # Query your context
-bitranger query "How does authentication work?"
+bitranger query "How does error handling work?"
 ```
 
 ---
@@ -68,6 +73,14 @@ bitranger init
 
 Your context tree is ready! Start curating with:
   bitranger curate "your context here"
+
+Default domains created:
+  • code_style - Coding standards and patterns
+  • testing - Testing strategies
+  • structure - Project architecture
+  • design - UI/UX patterns
+  • compliance - Security and regulatory
+  • bug_fixes - Known issues and solutions
 ```
 
 **When to use:**
@@ -116,22 +129,25 @@ Configuration:
   Git tracking: Disabled
 
 Context Tree:
-  Domains: 3
-  Topics: 12
-  Context files: 47
+  Domains: 6
+  Topics: 15
+  Context files: 52
   Last updated: 2 minutes ago
 
 Domains:
-  ├── Architecture (5 topics, 15 context files)
-  ├── API (4 topics, 20 context files)
-  └── Frontend (3 topics, 12 context files)
+  ├── code_style (4 topics, 12 context files)
+  ├── testing (3 topics, 10 context files)
+  ├── structure (3 topics, 15 context files)
+  ├── design (2 topics, 8 context files)
+  ├── compliance (2 topics, 5 context files)
+  └── bug_fixes (1 topic, 2 context files)
 
 Active Integrations:
   • Claude Code: Ready
   • Cursor: Ready
 
 Storage:
-  Total size: 125 KB
+  Total size: 145 KB
 ```
 
 **When to use:**
@@ -190,11 +206,12 @@ Enter your context (press Ctrl+D when done):
 
 **Expected Output (Direct Input):**
 ```bash
-bitranger curate "User authentication uses JWT with 15-minute expiry and 7-day refresh tokens"
+bitranger curate "API error handling uses custom error classes. All errors return JSON with error, message, and statusCode fields. Related to compliance logging requirements."
 
 Analyzing context...
-✓ Categorized as: API > Authentication
-✓ Created context file: .bitranger/API/Authentication/jwt-implementation.md
+✓ Categorized as: code_style > error-handling
+✓ Created context file: .bitranger/code_style/error-handling/context.md
+✓ Added relations: @compliance/logging-requirements
 
 Context successfully added to your tree!
 ```
@@ -210,7 +227,7 @@ Context successfully added to your tree!
 
 **1. Simple text input:**
 ```bash
-bitranger curate "All API endpoints require Bearer token authentication except /health and /login"
+bitranger curate "All API endpoints return structured errors with status codes. Custom error classes extend base Error class."
 ```
 
 **2. Import from file:**
@@ -230,13 +247,13 @@ bitranger curate
 # This opens an interactive agent that asks questions:
 # - What domain does this relate to?
 # - What specific topic?
-# - Any related code examples?
-# - Should this update existing context?
+# - Should this be in a subtopic?
+# - Any related context (relations)?
 ```
 
 **5. Curate with specific domain/topic:**
 ```bash
-bitranger curate --domain Frontend --topic Components "All React components must use TypeScript and include prop validation"
+bitranger curate --domain code_style --topic authentication "All JWT tokens use RS256 signing algorithm"
 ```
 
 **6. Import from webpage:**
@@ -244,9 +261,10 @@ bitranger curate --domain Frontend --topic Components "All React components must
 bitranger curate --url https://docs.example.com/api-guidelines
 ```
 
-**7. Curate code patterns:**
+**7. Curate with relations:**
 ```bash
-bitranger curate "Error handling pattern: Always use try-catch in async route handlers and return structured errors with status codes"
+bitranger curate "Rate limiting: 100 requests per minute per IP, using Redis sliding window. Related to API design and compliance."
+# Agent automatically detects relations and adds them to context.md
 ```
 
 ---
@@ -269,33 +287,45 @@ bitranger query "your question here"
 
 **Expected Output:**
 ```bash
-bitranger query "How does authentication work?"
+bitranger query "How do we handle errors in the API?"
 
 Searching context tree...
-Found relevant context in 2 locations:
+Found relevant context in 3 locations:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-API > Authentication > JWT Implementation
+code_style > error-handling > context.md
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-User authentication uses JWT tokens with the following characteristics:
-- Access token expiry: 15 minutes
-- Refresh token expiry: 7 days
-- Token rotation on refresh
-- Stored in httpOnly cookies
+All API endpoints use structured error responses:
+- HTTP status codes (400, 401, 403, 404, 500)
+- JSON format: { error, message, statusCode }
+- Custom error classes for different types
 
-Implementation location: src/auth/jwt.service.ts
+Implementation: src/middleware/error-handler.ts
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-API > Authentication > Middleware
+structure > api-design > context.md
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-All API endpoints require Bearer token authentication except:
-- /health (health checks)
-- /login (initial authentication)
-- /register (user registration)
+Error handling middleware catches all errors and formats responses:
+- ValidationError → 400
+- AuthenticationError → 401
+- NotFoundError → 404
 
-Middleware location: src/middleware/auth.middleware.ts
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+compliance > logging-requirements > context.md
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+All 500-level errors must be logged with full stack traces.
+400-level errors log request details for debugging.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+API error handling uses structured JSON responses with custom error classes.
+All errors follow a consistent format with appropriate HTTP status codes.
+Error middleware centralizes handling, and all server errors are logged per compliance requirements.
 ```
 
 **When to use:**
@@ -326,7 +356,7 @@ bitranger query "API rate limiting" --format plain
 
 **3. Specific domain query:**
 ```bash
-bitranger query "component patterns" --domain Frontend
+bitranger query "component patterns" --domain design
 ```
 
 **4. Save query results:**
@@ -336,7 +366,8 @@ bitranger query "deployment process" > context-for-task.md
 
 **5. Multiple queries (research mode):**
 ```bash
-bitranger query "authentication, authorization, session management"
+bitranger query "authentication, error handling, logging requirements"
+# Agent follows relations between these interconnected topics
 ```
 
 ---
@@ -652,26 +683,63 @@ After running `bitranger init`, your repository will have:
 your-project/
 ├── .bitranger/
 │   ├── config.json                    # bitranger configuration
-│   ├── Architecture/                  # Domain: Architecture
-│   │   ├── System-Design/            # Topic
-│   │   │   └── microservices.md      # Context file
-│   │   └── Database/                 # Topic
-│   │       └── schema-design.md      # Context file
-│   ├── API/                          # Domain: API
-│   │   ├── Authentication/           # Topic
-│   │   │   ├── jwt-implementation.md
-│   │   │   └── oauth-flow.md
-│   │   └── Endpoints/
-│   │       └── rest-conventions.md
-│   └── Frontend/                     # Domain: Frontend
-│       ├── Components/
-│       │   └── react-patterns.md
-│       └── State-Management/
-│           └── redux-usage.md
-├── .claude-code-rules.md             # Generated rules for Claude Code
-├── .cursorrules                      # Generated rules for Cursor
+│   ├── code_style/                    # Domain: Code Style
+│   │   ├── error-handling/            # Topic
+│   │   │   ├── context.md            # Topic-level overview
+│   │   │   └── api-tests/            # Subtopic (optional)
+│   │   │       └── context.md        # Subtopic-specific details
+│   │   └── authentication/            # Topic
+│   │       └── context.md
+│   ├── testing/                       # Domain: Testing
+│   │   ├── unit-tests/
+│   │   │   └── context.md
+│   │   └── integration-tests/
+│   │       ├── context.md            # General integration testing
+│   │       └── api-tests/
+│   │           └── context.md        # Specific API test patterns
+│   ├── structure/                     # Domain: Structure
+│   │   └── api-design/
+│   │       └── context.md
+│   ├── design/                        # Domain: Design
+│   │   └── ui-patterns/
+│   │       └── context.md
+│   ├── compliance/                    # Domain: Compliance
+│   │   └── logging-requirements/
+│   │       └── context.md
+│   └── bug_fixes/                     # Domain: Bug Fixes
+│       └── known-issues/
+│           └── context.md
+├── .claude-code-rules.md              # Generated rules for Claude Code
+├── .cursorrules                       # Generated rules for Cursor
 └── (your existing project files)
 ```
+
+### Understanding Relations
+
+Context files can link to each other using relations:
+
+**Example:** `.bitranger/code_style/error-handling/context.md`
+```markdown
+# Error Handling
+
+## Structured Errors
+All API errors return JSON with error, message, and statusCode fields.
+
+## Custom Error Classes
+- ValidationError (400)
+- AuthenticationError (401)
+- NotFoundError (404)
+
+## Relations
+@structure/api-design
+@testing/integration-tests/api-tests
+@compliance/logging-requirements
+```
+
+When you query "error handling", the agent:
+1. Reads the error-handling context.md
+2. Follows relations to gather connected context
+3. Synthesizes answer from all related sources
 
 ---
 
@@ -696,7 +764,7 @@ The `.bitranger/config.json` file controls bitranger behavior:
   },
   "contextTree": {
     "autoOrganize": true,
-    "defaultDomains": ["Architecture", "API", "Frontend"]
+    "defaultDomains": ["code_style", "testing", "structure", "design", "compliance", "bug_fixes"]
   }
 }
 ```
@@ -713,6 +781,31 @@ bitranger config add-domain "Mobile"
 # Disable auto-organization
 bitranger config set contextTree.autoOrganize false
 ```
+
+---
+
+## Understanding the ByteRover Structure
+
+bitranger uses a structure inspired by [ByteRover](https://docs.byterover.dev/beta/context-tree/local-space-structure). See [BYTEROVER_STRUCTURE.md](./BYTEROVER_STRUCTURE.md) for comprehensive documentation.
+
+### Key Concepts
+
+1. **Six Default Domains**: code_style, testing, structure, design, compliance, bug_fixes
+2. **Standardized Files**: Every topic and subtopic has a `context.md` file
+3. **Subtopics**: Optional deeper organization (max 1 level)
+4. **Relations**: Graph-like navigation using `@domain/topic/subtopic` notation
+
+### Example Structure
+
+```
+code_style/
+├── error-handling/              # Topic
+│   ├── context.md              # General error handling patterns
+│   └── api-tests/              # Subtopic (specific aspect)
+│       └── context.md          # API-specific error testing
+```
+
+Both `context.md` files can contain a `## Relations` section linking to related context.
 
 ---
 
@@ -740,14 +833,22 @@ bitranger gen-rules
 ```
 
 ### 4. Organize by Domain
-Use clear domain and topic names:
-- ✅ Good: `API > Authentication > JWT`
-- ❌ Bad: `Stuff > Things > Code`
+Use clear domain and topic names that match ByteRover's structure:
+- ✅ Good: `code_style > error-handling`
+- ❌ Bad: `Stuff > Things`
 
 ### 5. Be Specific
 Provide concrete, actionable context:
 - ✅ Good: "Rate limiting: 100 requests per minute per IP, using Redis sliding window"
 - ❌ Bad: "We have rate limiting"
+
+### 6. Use Relations
+Link related context for comprehensive retrieval:
+```markdown
+## Relations
+@testing/integration-tests/api-tests
+@compliance/security
+```
 
 ---
 

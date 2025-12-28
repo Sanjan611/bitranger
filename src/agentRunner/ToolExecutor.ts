@@ -2,10 +2,11 @@ import { ContextTreeStore } from '../contextTree/ContextTreeStore.js';
 
 type ListDomainsTool = { toolName: 'ListDomains' };
 type ListTopicsTool = { toolName: 'ListTopics'; domain: string };
-type ListMemoriesTool = { toolName: 'ListMemories'; domain: string; topic: string };
-type ReadMemoryTool = { toolName: 'ReadMemory'; domain: string; topic: string; filename: string };
+type ListSubtopicsTool = { toolName: 'ListSubtopics'; domain: string; topic: string };
+type ListMemoriesTool = { toolName: 'ListMemories'; domain: string; topic: string; subtopic?: string | null };
+type ReadMemoryTool = { toolName: 'ReadMemory'; domain: string; topic: string; filename: string; subtopic?: string | null };
 type ReadFileTool = { toolName: 'ReadFile'; path: string };
-type WriteMemoryTool = { toolName: 'WriteMemory'; action: 'create' | 'update'; domain: string; topic: string; filename: string; content: string };
+type WriteMemoryTool = { toolName: 'WriteMemory'; action: 'create' | 'update'; domain: string; topic: string; filename: string; content: string; subtopic?: string | null };
 type CurateDoneTool = { toolName: 'Done' };
 type QueryDoneTool = { toolName: 'Done'; results?: any[]; summary?: string };
 export type ToolResult = { toolName: string; input: string; output: string };
@@ -20,6 +21,7 @@ export class ToolExecutor {
     tool:
       | ListDomainsTool
       | ListTopicsTool
+      | ListSubtopicsTool
       | ListMemoriesTool
       | ReadMemoryTool
       | ReadFileTool
@@ -50,22 +52,33 @@ export class ToolExecutor {
           };
         }
 
-        case 'ListMemories': {
-          const t = tool as ListMemoriesTool;
-          const memories = await this.store.listMemories(t.domain, t.topic);
+        case 'ListSubtopics': {
+          const t = tool as ListSubtopicsTool;
+          const subtopics = await this.store.listSubtopics(t.domain, t.topic);
           return {
             toolName,
             input: JSON.stringify({ domain: t.domain, topic: t.topic }),
-            output: `Memories in ${t.domain}/${t.topic}:\n${memories.map((m) => `- ${m}`).join('\n')}`,
+            output: `Subtopics in ${t.domain}/${t.topic}:\n${subtopics.map((s) => `- ${s}`).join('\n')}`,
+          };
+        }
+
+        case 'ListMemories': {
+          const t = tool as ListMemoriesTool;
+          const memories = await this.store.listMemories(t.domain, t.topic, t.subtopic || undefined);
+          const location = t.subtopic ? `${t.domain}/${t.topic}/${t.subtopic}` : `${t.domain}/${t.topic}`;
+          return {
+            toolName,
+            input: JSON.stringify({ domain: t.domain, topic: t.topic, subtopic: t.subtopic }),
+            output: `Memories in ${location}:\n${memories.map((m) => `- ${m}`).join('\n')}`,
           };
         }
 
         case 'ReadMemory': {
           const t = tool as ReadMemoryTool;
-          const content = await this.store.readMemory(t.domain, t.topic, t.filename);
+          const content = await this.store.readMemory(t.domain, t.topic, t.filename, t.subtopic || undefined);
           return {
             toolName,
-            input: JSON.stringify({ domain: t.domain, topic: t.topic, filename: t.filename }),
+            input: JSON.stringify({ domain: t.domain, topic: t.topic, filename: t.filename, subtopic: t.subtopic }),
             output: content,
           };
         }
@@ -82,7 +95,8 @@ export class ToolExecutor {
 
         case 'WriteMemory': {
           const t = tool as WriteMemoryTool;
-          await this.store.writeMemory(t.domain, t.topic, t.filename, t.content);
+          await this.store.writeMemory(t.domain, t.topic, t.filename, t.content, t.subtopic || undefined);
+          const location = t.subtopic ? `${t.domain}/${t.topic}/${t.subtopic}/${t.filename}` : `${t.domain}/${t.topic}/${t.filename}`;
           return {
             toolName,
             input: JSON.stringify({
@@ -90,8 +104,9 @@ export class ToolExecutor {
               domain: t.domain,
               topic: t.topic,
               filename: t.filename,
+              subtopic: t.subtopic,
             }),
-            output: `Successfully ${t.action === 'create' ? 'created' : 'updated'} memory: ${t.domain}/${t.topic}/${t.filename}`,
+            output: `Successfully ${t.action === 'create' ? 'created' : 'updated'} memory: ${location}`,
           };
         }
 

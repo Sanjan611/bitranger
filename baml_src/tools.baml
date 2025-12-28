@@ -17,6 +17,7 @@ class RetrievedContext {
   topic string
   filename string
   relevantContent string @description("The specific excerpt that answers the query")
+  subtopic string? @description("Optional subtopic if the context is from a subtopic")
 }
 
 // =============================================================================
@@ -34,11 +35,19 @@ class ListTopicsTool {
   domain string @description("The domain to list topics from")
 }
 
-// Tool to list all memory files within a domain/topic
+// Tool to list all subtopics within a specific topic
+class ListSubtopicsTool {
+  toolName "ListSubtopics"
+  domain string @description("The domain containing the topic")
+  topic string @description("The topic to list subtopics from")
+}
+
+// Tool to list all memory files within a domain/topic or subtopic
 class ListMemoriesTool {
   toolName "ListMemories"
   domain string @description("The domain containing the topic")
   topic string @description("The topic to list memories from")
+  subtopic string? @description("Optional subtopic within the topic")
 }
 
 // Tool to read the content of a specific memory file from the context tree
@@ -47,6 +56,7 @@ class ReadMemoryTool {
   domain string @description("The domain containing the memory")
   topic string @description("The topic containing the memory")
   filename string @description("The memory filename to read")
+  subtopic string? @description("Optional subtopic containing the memory")
 }
 
 // Tool to read source code files from the project codebase (not the context tree)
@@ -60,13 +70,16 @@ class ReadFileTool {
 // =============================================================================
 
 // Tool to write or update a memory file in the context tree
+// IMPORTANT: Always use "context.md" as the filename (not custom filenames)
+// Content should include a ## Relations section at the end with @domain/topic/subtopic references
 class WriteMemoryTool {
   toolName "WriteMemory"
   action "create" | "update" @description("Whether to create a new memory file or update an existing one")
   domain string @description("The target domain for the memory")
   topic string @description("The target topic within the domain")
-  filename string @description("The memory filename without extension")
-  content string @description("The markdown content to write")
+  filename string @description("The memory filename - should always be 'context.md'")
+  content string @description("The markdown content to write, including ## Relations section if applicable")
+  subtopic string? @description("Optional subtopic within the topic for deeper organization (max 1 level)")
 }
 
 // Curate completion - signals successful curation

@@ -17,7 +17,8 @@ template_string CurateAvailableTools() #"
 
 - ListDomains: List all domains in the context tree
 - ListTopics: List topics within a specific domain
-- ListMemories: List memory files within a domain/topic
+- ListSubtopics: List subtopics within a specific topic
+- ListMemories: List memory files within a domain/topic or subtopic
 - ReadMemory: Read the content of a specific memory file
 - ReadFile: Read source code files from the project codebase
 - WriteMemory: Write or update a memory file (action: "create" or "update")
@@ -58,15 +59,43 @@ template_string CurateInstructions() #"
 - ALWAYS merge existing context when updating (don't overwrite valuable information)
 
 **File Naming:**
-- Use kebab-case for filenames (e.g., "jwt-authentication.md")
-- Choose descriptive, specific names
-- Include the .md extension
+- **ALWAYS use "context.md" as the filename** (not custom filenames like "jwt-authentication.md")
+- Each topic has its own context.md file
+- Each subtopic (if used) also has its own context.md file
+- Use subtopics for deeper organization (maximum 1 level deep)
+
+**Structure Example:**
+```
+code_style/
+├── error-handling/           # topic
+│   ├── context.md           # topic-level overview
+│   └── api-tests/           # subtopic
+│       └── context.md       # subtopic-specific details
+```
+
+**Subtopics:**
+- Use subtopics to organize related content within a topic
+- Maximum depth: 1 level (domain → topic → subtopic)
+- Both topic and subtopic have context.md files
+- Topic-level context.md: overview and general information
+- Subtopic-level context.md: specific detailed information
+- Subtopics are optional - use when content has clear sub-categories
 
 **Content Formatting:**
 - Format all content as clear, well-structured Markdown
 - Use proper headings (##, ###)
 - Include code blocks with language tags where appropriate
 - Organize information logically
+
+**Relations Section:**
+- Add a ## Relations section at the end of context.md files
+- Use @domain/topic or @domain/topic/subtopic format
+- Link to related context across the tree for graph-like navigation
+- Relations enable comprehensive context retrieval during queries
+- Example:
+  ## Relations
+  @code_style/error-handling
+  @testing/integration-tests/api-tests
 "#
 
 template_string CurateGoodExamples() #"
@@ -75,16 +104,38 @@ template_string CurateGoodExamples() #"
 **Pattern for SIMPLE content** (e.g., "API uses JWT with 15-min expiry"):
 1. ListDomains → identify relevant category
 2. ListTopics (in that domain) → find appropriate topic
-3. ListMemories (in that topic) → check for existing related files
-4. If file exists: ReadMemory → assess completeness → WriteMemory (update) OR Done
-5. If no file: WriteMemory (create) → Done
+3. ListMemories (in that topic) → check for context.md at topic level
+4. If context.md exists: ReadMemory → assess completeness → WriteMemory (update) OR Done
+5. If no context.md: WriteMemory (create with filename="context.md") → Done
 
 **Pattern for COMPLEX content** (e.g., detailed architecture document):
 1. ListDomains → identify target domain
 2. ListTopics → find appropriate topic
-3. ListMemories → identify candidate files
-4. ReadMemory (only most relevant file) → assess overlap/conflict
-5. WriteMemory (create new OR update existing) → Done
+3. ListMemories → check for context.md at topic level
+4. If needed, ListSubtopics → check for relevant subtopic organization
+5. ReadMemory (context.md if exists) → assess overlap/conflict
+6. WriteMemory (create or update context.md at topic or subtopic level) → Done
+
+**Pattern with SUBTOPICS** (when content needs sub-organization):
+1. Navigate to domain and topic as usual
+2. Check if topic-level context.md exists (ListMemories without subtopic)
+3. If creating subtopic-specific content:
+   - ListSubtopics → check existing subtopics
+   - WriteMemory with subtopic parameter and filename="context.md"
+4. Note: Both topic and subtopic can have their own context.md files
+
+**Example with both levels:**
+General authentication info → code_style/authentication/context.md
+Specific API auth tests → testing/integration-tests/api-tests/context.md
+
+**Relations Example:**
+When writing context about error handling in APIs:
+1. Create/update: structure/api-design/context.md (topic level)
+2. Add Relations section:
+   ## Relations
+   @code_style/error-handling
+   @testing/integration-tests
+   @compliance/logging-requirements
 "#
 
 template_string CurateMessageHistory(messageHistory: AgentMessage[]) #"
@@ -109,7 +160,7 @@ Content to curate:
 // MAIN FUNCTION - Composes all template strings
 // =============================================================================
 
-function CurateContext(content: string, domainHint: string?, topicHint: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | WriteMemoryTool | CurateDoneTool {
+function CurateContext(content: string, domainHint: string?, topicHint: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListSubtopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | WriteMemoryTool | CurateDoneTool {
   client CustomHaiku
   prompt #"
     {{ CurateAgentIdentity() }}
@@ -140,14 +191,15 @@ test test_curate_first_iteration {
     content "Our API uses Redis for caching with 1-hour TTL. The cache key format is 'cache:{resource}:{id}' and we use Redis SET with EX option."
     contextTreeStructure #"
       context_tree/
-      ├── engineering/
-      │   ├── backend/
-      │   │   └── authentication.md
-      │   └── frontend/
-      │       └── components.md
-      └── product/
-          └── features/
-              └── onboarding.md
+      ├── code_style/
+      │   └── error-handling/
+      │       └── context.md
+      ├── testing/
+      │   └── integration-tests/
+      │       └── context.md
+      └── structure/
+          └── api-design/
+              └── context.md
     "#
     messageHistory []
   }
@@ -164,19 +216,19 @@ test test_curate_mid_iteration {
       - Uses token bucket algorithm with refill rate
       - Burst tokens reset every hour
     "#
-    domainHint "engineering"
-    topicHint "backend"
+    domainHint "compliance"
+    topicHint "rate-limiting"
     contextTreeStructure #"
       context_tree/
-      ├── engineering/
-      │   ├── backend/
-      │   │   ├── authentication.md
-      │   │   └── rate-limiting.md
-      │   └── frontend/
-      │       └── components.md
-      └── product/
-          └── features/
-              └── onboarding.md
+      ├── code_style/
+      │   └── error-handling/
+      │       └── context.md
+      ├── compliance/
+      │   └── rate-limiting/
+      │       └── context.md
+      └── structure/
+          └── api-design/
+              └── context.md
     "#
     messageHistory [
       {
@@ -186,30 +238,29 @@ Tool: ListDomains
 Input: {}
 Output:
 Available domains:
-- engineering
-- product
+- code_style
+- compliance
+- structure
         "#
       },
       {
         role: "user",
         message: #"
 Tool: ListTopics
-Input: {"domain": "engineering"}
+Input: {"domain": "compliance"}
 Output:
-Topics in engineering domain:
-- backend
-- frontend
+Topics in compliance domain:
+- rate-limiting
         "#
       },
       {
         role: "user",
         message: #"
 Tool: ListMemories
-Input: {"domain": "engineering", "topic": "backend"}
+Input: {"domain": "compliance", "topic": "rate-limiting"}
 Output:
-Memories in engineering/backend:
-- authentication.md
-- rate-limiting.md
+Memories in compliance/rate-limiting:
+- context.md
         "#
       }
     ]
@@ -220,19 +271,19 @@ test test_curate_near_completion {
   functions [CurateContext]
   args {
     content "We use bcrypt with 12 salt rounds for password hashing. Minimum password length is 12 characters."
-    domainHint "engineering"
-    topicHint "backend"
+    domainHint "code_style"
+    topicHint "authentication"
     contextTreeStructure #"
       context_tree/
-      ├── engineering/
-      │   ├── backend/
-      │   │   ├── authentication.md
-      │   │   └── rate-limiting.md
-      │   └── frontend/
-      │       └── components.md
-      └── product/
-          └── features/
-              └── onboarding.md
+      ├── code_style/
+      │   └── authentication/
+      │       └── context.md
+      ├── testing/
+      │   └── integration-tests/
+      │       └── context.md
+      └── compliance/
+          └── security/
+              └── context.md
     "#
     messageHistory [
       {
@@ -242,37 +293,36 @@ Tool: ListDomains
 Input: {}
 Output:
 Available domains:
-- engineering
-- product
+- code_style
+- testing
+- compliance
         "#
       },
       {
         role: "user",
         message: #"
 Tool: ListTopics
-Input: {"domain": "engineering"}
+Input: {"domain": "code_style"}
 Output:
-Topics in engineering domain:
-- backend
-- frontend
+Topics in code_style domain:
+- authentication
         "#
       },
       {
         role: "user",
         message: #"
 Tool: ListMemories
-Input: {"domain": "engineering", "topic": "backend"}
+Input: {"domain": "code_style", "topic": "authentication"}
 Output:
-Memories in engineering/backend:
-- authentication.md
-- rate-limiting.md
+Memories in code_style/authentication:
+- context.md
         "#
       },
       {
         role: "user",
         message: #"
 Tool: ReadMemory
-Input: {"domain": "engineering", "topic": "backend", "filename": "authentication.md"}
+Input: {"domain": "code_style", "topic": "authentication", "filename": "context.md"}
 Output:
 # Authentication
 
@@ -284,6 +334,10 @@ Output:
 ## OAuth Integration
 - Supports Google and GitHub OAuth
 - Uses passport.js library
+
+## Relations
+@compliance/security
+@testing/integration-tests
         "#
       }
     ]
@@ -303,19 +357,19 @@ test test_curate_conflict_resolution {
       Reason: Reduce the number of token refreshes while maintaining security.
       This change was approved in the security review on Dec 2024.
     "#
-    domainHint "engineering"
-    topicHint "backend"
+    domainHint "code_style"
+    topicHint "authentication"
     contextTreeStructure #"
       context_tree/
-      ├── engineering/
-      │   ├── backend/
-      │   │   ├── authentication.md
-      │   │   └── rate-limiting.md
-      │   └── frontend/
-      │       └── components.md
-      └── product/
-          └── features/
-              └── onboarding.md
+      ├── code_style/
+      │   └── authentication/
+      │       └── context.md
+      ├── testing/
+      │   └── integration-tests/
+      │       └── context.md
+      └── compliance/
+          └── security/
+              └── context.md
     "#
     messageHistory [
       {
@@ -325,37 +379,36 @@ Tool: ListDomains
 Input: {}
 Output:
 Available domains:
-- engineering
-- product
+- code_style
+- testing
+- compliance
         "#
       },
       {
         role: "user",
         message: #"
 Tool: ListTopics
-Input: {"domain": "engineering"}
+Input: {"domain": "code_style"}
 Output:
-Topics in engineering domain:
-- backend
-- frontend
+Topics in code_style domain:
+- authentication
         "#
       },
       {
         role: "user",
         message: #"
 Tool: ListMemories
-Input: {"domain": "engineering", "topic": "backend"}
+Input: {"domain": "code_style", "topic": "authentication"}
 Output:
-Memories in engineering/backend:
-- authentication.md
-- rate-limiting.md
+Memories in code_style/authentication:
+- context.md
         "#
       },
       {
         role: "user",
         message: #"
 Tool: ReadMemory
-Input: {"domain": "engineering", "topic": "backend", "filename": "authentication.md"}
+Input: {"domain": "code_style", "topic": "authentication", "filename": "context.md"}
 Output:
 # Authentication
 
@@ -372,6 +425,10 @@ Output:
 - Minimum 12 characters
 - Must include uppercase, lowercase, numbers, and special characters
 - Hashed with bcrypt using 12 salt rounds
+
+## Relations
+@compliance/security
+@testing/integration-tests
         "#
       }
     ]

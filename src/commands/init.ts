@@ -25,7 +25,7 @@ export function initCommand(program: Command) {
         // Parse domains
         const defaultDomains = options.domains
           ? options.domains.split(',').map((d: string) => d.trim())
-          : ['Architecture', 'API', 'Frontend'];
+          : ['code_style', 'testing', 'structure', 'design', 'compliance', 'bug_fixes'];
 
         // Initialize
         await store.initialize({
@@ -65,6 +65,14 @@ export function initCommand(program: Command) {
         console.log('');
         console.log('Your context tree is ready! Start curating with:');
         console.log('  bitranger curate "your context here"');
+        console.log('');
+        console.log('Default domains created:');
+        console.log('  • code_style - Coding standards and patterns');
+        console.log('  • testing - Testing strategies');
+        console.log('  • structure - Project architecture');
+        console.log('  • design - UI/UX patterns');
+        console.log('  • compliance - Security and regulatory');
+        console.log('  • bug_fixes - Known issues and solutions');
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`Error: ${errorMessage}`);

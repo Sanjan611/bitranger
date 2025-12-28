@@ -48,7 +48,7 @@ export class ContextTreeStore {
       },
       contextTree: {
         autoOrganize: true,
-        defaultDomains: config.contextTree?.defaultDomains || ['Architecture', 'API', 'Frontend'],
+        defaultDomains: config.contextTree?.defaultDomains || ['code_style', 'testing', 'structure', 'design', 'compliance', 'bug_fixes'],
       },
     };
 
@@ -113,12 +113,30 @@ export class ContextTreeStore {
   }
 
   /**
-   * List all memory files within a domain/topic
+   * List all subtopics within a topic
    */
-  async listMemories(domain: string, topic: string): Promise<string[]> {
+  async listSubtopics(domain: string, topic: string): Promise<string[]> {
     const topicPath = path.join(this.bitrangerPath, domain, topic);
     try {
       const entries = await fs.readdir(topicPath, { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort();
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * List all memory files within a domain/topic or subtopic
+   */
+  async listMemories(domain: string, topic: string, subtopic?: string): Promise<string[]> {
+    const targetPath = subtopic 
+      ? path.join(this.bitrangerPath, domain, topic, subtopic)
+      : path.join(this.bitrangerPath, domain, topic);
+    try {
+      const entries = await fs.readdir(targetPath, { withFileTypes: true });
       return entries
         .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
         .map((entry) => entry.name)
@@ -131,13 +149,13 @@ export class ContextTreeStore {
   /**
    * Read a memory file
    */
-  async readMemory(domain: string, topic: string, filename: string): Promise<string> {
-    const memoryPath = path.join(
-      this.bitrangerPath,
-      domain,
-      topic,
-      filename.endsWith('.md') ? filename : `${filename}.md`
-    );
+  async readMemory(domain: string, topic: string, filename: string, subtopic?: string): Promise<string> {
+    const pathSegments = [this.bitrangerPath, domain, topic];
+    if (subtopic) {
+      pathSegments.push(subtopic);
+    }
+    pathSegments.push(filename.endsWith('.md') ? filename : `${filename}.md`);
+    const memoryPath = path.join(...pathSegments);
     return await fs.readFile(memoryPath, 'utf-8');
   }
 
@@ -148,12 +166,17 @@ export class ContextTreeStore {
     domain: string,
     topic: string,
     filename: string,
-    content: string
+    content: string,
+    subtopic?: string
   ): Promise<void> {
-    const topicPath = path.join(this.bitrangerPath, domain, topic);
-    await fs.mkdir(topicPath, { recursive: true });
+    const pathSegments = [this.bitrangerPath, domain, topic];
+    if (subtopic) {
+      pathSegments.push(subtopic);
+    }
+    const targetPath = path.join(...pathSegments);
+    await fs.mkdir(targetPath, { recursive: true });
 
-    const memoryPath = path.join(topicPath, filename.endsWith('.md') ? filename : `${filename}.md`);
+    const memoryPath = path.join(targetPath, filename.endsWith('.md') ? filename : `${filename}.md`);
     await fs.writeFile(memoryPath, content, 'utf-8');
   }
 
@@ -168,8 +191,13 @@ export class ContextTreeStore {
   /**
    * Delete a memory file
    */
-  async deleteMemory(domain: string, topic: string, filename: string): Promise<void> {
-    const memoryPath = path.join(this.bitrangerPath, domain, topic, filename);
+  async deleteMemory(domain: string, topic: string, filename: string, subtopic?: string): Promise<void> {
+    const pathSegments = [this.bitrangerPath, domain, topic];
+    if (subtopic) {
+      pathSegments.push(subtopic);
+    }
+    pathSegments.push(filename);
+    const memoryPath = path.join(...pathSegments);
     await fs.unlink(memoryPath);
   }
 
@@ -229,6 +257,7 @@ export class ContextTreeStore {
       let domainFiles = 0;
 
       for (const topic of topics) {
+        // Count files at topic level
         const memories = await this.listMemories(domain, topic);
         domainFiles += memories.length;
 
@@ -236,6 +265,19 @@ export class ContextTreeStore {
           const memoryPath = path.join(this.bitrangerPath, domain, topic, memory);
           const stats = await fs.stat(memoryPath);
           totalSize += stats.size;
+        }
+
+        // Count files in subtopics
+        const subtopics = await this.listSubtopics(domain, topic);
+        for (const subtopic of subtopics) {
+          const subtopicMemories = await this.listMemories(domain, topic, subtopic);
+          domainFiles += subtopicMemories.length;
+
+          for (const memory of subtopicMemories) {
+            const memoryPath = path.join(this.bitrangerPath, domain, topic, subtopic, memory);
+            const stats = await fs.stat(memoryPath);
+            totalSize += stats.size;
+          }
         }
       }
 
@@ -274,14 +316,39 @@ export class ContextTreeStore {
         const topicBranch = isLastTopic ? '└── ' : '├── ';
         lines.push(`${topicPrefix}${topicBranch}${topic}/`);
 
+        // List memories at topic level
         const memories = await this.listMemories(domain, topic);
+        const subtopics = await this.listSubtopics(domain, topic);
+        const hasSubtopics = subtopics.length > 0;
+        
         for (let k = 0; k < memories.length; k++) {
           const memory = memories[k];
-          const isLastMemory = k === memories.length - 1;
+          const isLastMemory = k === memories.length - 1 && !hasSubtopics;
           const memoryPrefix = isLastDomain ? '    ' : '│   ';
           const memoryPrefix2 = isLastTopic ? '    ' : '│   ';
           const memoryBranch = isLastMemory ? '└── ' : '├── ';
           lines.push(`${memoryPrefix}${memoryPrefix2}${memoryBranch}${memory}`);
+        }
+
+        // List subtopics and their memories
+        for (let s = 0; s < subtopics.length; s++) {
+          const subtopic = subtopics[s];
+          const isLastSubtopic = s === subtopics.length - 1;
+          const subtopicPrefix = isLastDomain ? '    ' : '│   ';
+          const subtopicPrefix2 = isLastTopic ? '    ' : '│   ';
+          const subtopicBranch = isLastSubtopic ? '└── ' : '├── ';
+          lines.push(`${subtopicPrefix}${subtopicPrefix2}${subtopicBranch}${subtopic}/`);
+
+          const subtopicMemories = await this.listMemories(domain, topic, subtopic);
+          for (let m = 0; m < subtopicMemories.length; m++) {
+            const memory = subtopicMemories[m];
+            const isLastMemory = m === subtopicMemories.length - 1;
+            const memPrefix1 = isLastDomain ? '    ' : '│   ';
+            const memPrefix2 = isLastTopic ? '    ' : '│   ';
+            const memPrefix3 = isLastSubtopic ? '    ' : '│   ';
+            const memBranch = isLastMemory ? '└── ' : '├── ';
+            lines.push(`${memPrefix1}${memPrefix2}${memPrefix3}${memBranch}${memory}`);
+          }
         }
       }
     }
