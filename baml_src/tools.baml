@@ -42,16 +42,9 @@ class ListSubtopicsTool {
   topic string @description("The topic to list subtopics from")
 }
 
-// Tool to list all memory files within a domain/topic or subtopic
-class ListMemoriesTool {
-  toolName "ListMemories"
-  domain string @description("The domain containing the topic")
-  topic string @description("The topic to list memories from")
-  subtopic string? @description("Optional subtopic within the topic")
-}
-
 // Tool to read the content of a specific memory file from the context tree
-// Reads the standard context.md file at the topic or subtopic level
+// Reads the implicit context.md file at the topic or subtopic level
+// The filename is always context.md and does not need to be checked for existence first
 class ReadMemoryTool {
   toolName "ReadMemory"
   domain string @description("The domain containing the memory")

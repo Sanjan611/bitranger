@@ -18,8 +18,7 @@ template_string CurateAvailableTools() #"
 - ListDomains: List all domains in the context tree
 - ListTopics: List topics within a specific domain
 - ListSubtopics: List subtopics within a specific topic
-- ListMemories: List memory files within a domain/topic or subtopic
-- ReadMemory: Read the content of a specific memory file
+- ReadMemory: Read the content of the implicit context.md file at topic or subtopic level
 - ReadFile: Read source code files from the project codebase
 - WriteMemory: Write or update a memory file (action: "create" or "update")
 - Done: Signal that curation is complete
@@ -42,18 +41,19 @@ template_string CurateInstructions() #"
 ## Memory Management Decision Logic
 
 **Determine Action:**
-1. Check if a relevant memory file exists using ListMemories
-2. If a potentially relevant file exists, ReadMemory to examine its content
-3. Decide on action:
-   - **No relevant file exists** → WriteMemory with action="create"
-   - **Existing file has all details** → Call Done (no write needed)
-   - **Existing file is incomplete** → WriteMemory with action="update" (merge content)
-   - **Existing file conflicts with new content** → WriteMemory with action="update" (resolve conflict)
+1. Navigate to the relevant domain/topic using ListDomains and ListTopics (check message history first)
+2. Attempt to ReadMemory to examine existing context.md (the filename is always context.md, implicit)
+3. Decide on action based on ReadMemory result:
+   - **ReadMemory returns error (no file)** → WriteMemory with action="create"
+   - **ReadMemory succeeds but has all details** → Call Done (no write needed)
+   - **ReadMemory succeeds but incomplete** → WriteMemory with action="update" (merge content)
+   - **ReadMemory succeeds but conflicts** → WriteMemory with action="update" (resolve conflict)
 
 **Critical Rules:**
 - **Check message history BEFORE calling any tool** - avoid redundant operations
-- Do NOT read the same memory file twice (if already read, use that information)
-- Do NOT re-list domains/topics if they're already in message history
+- Do NOT read the same context.md twice (if already read, use that information)
+- Do NOT re-list domains/topics/subtopics if they're already in message history
+- ReadMemory errors indicate no existing context.md file (not a failure - proceed with create)
 - Do NOT create a new file if updating existing one is more appropriate
 - Do NOT call Done without WriteMemory (unless content already exists and is complete)
 - ALWAYS merge existing context when updating (don't overwrite valuable information)
@@ -103,23 +103,24 @@ template_string CurateGoodExamples() #"
 **Pattern for SIMPLE content** (e.g., "API uses JWT with 15-min expiry"):
 1. ListDomains → identify relevant category
 2. ListTopics (in that domain) → find appropriate topic
-3. ListMemories (in that topic) → check for context.md at topic level
-4. If context.md exists: ReadMemory → assess completeness → WriteMemory (update) OR Done
-5. If no context.md: WriteMemory (create) → Done
+3. ReadMemory (topic level) → attempt to read existing context.md
+4. If ReadMemory succeeds: assess completeness → WriteMemory (update) OR Done
+5. If ReadMemory fails (error): WriteMemory (create) → Done
 
 **Pattern for COMPLEX content** (e.g., detailed architecture document):
 1. ListDomains → identify target domain
 2. ListTopics → find appropriate topic
-3. ListMemories → check for context.md at topic level
+3. ReadMemory (topic level) → attempt to read existing overview
 4. If needed, ListSubtopics → check for relevant subtopic organization
-5. ReadMemory (context.md if exists) → assess overlap/conflict
+5. ReadMemory (subtopic level if relevant) → assess overlap/conflict
 6. WriteMemory (create or update context.md at topic or subtopic level) → Done
 
 **Pattern with SUBTOPICS** (when content needs sub-organization):
 1. Navigate to domain and topic as usual
-2. Check if topic-level context.md exists (ListMemories without subtopic)
+2. ReadMemory (topic level) → attempt to read topic-level context.md
 3. If creating subtopic-specific content:
    - ListSubtopics → check existing subtopics
+   - ReadMemory (subtopic level if relevant) → check existing content
    - WriteMemory with subtopic parameter
 4. Note: Both topic and subtopic can have their own context.md files
 
@@ -159,7 +160,7 @@ Content to curate:
 // MAIN FUNCTION - Composes all template strings
 // =============================================================================
 
-function CurateContext(content: string, domainHint: string?, topicHint: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListSubtopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | WriteMemoryTool | CurateDoneTool {
+function CurateContext(content: string, domainHint: string?, topicHint: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListSubtopicsTool | ReadMemoryTool | ReadFileTool | WriteMemoryTool | CurateDoneTool {
   client CustomHaiku
   prompt #"
     {{ CurateAgentIdentity() }}
@@ -251,16 +252,6 @@ Output:
 Topics in compliance domain:
 - rate-limiting
         "#
-      },
-      {
-        role: "user",
-        message: #"
-Tool: ListMemories
-Input: {"domain": "compliance", "topic": "rate-limiting"}
-Output:
-Memories in compliance/rate-limiting:
-- context.md
-        "#
       }
     ]
   }
@@ -310,16 +301,6 @@ Topics in code_style domain:
       {
         role: "user",
         message: #"
-Tool: ListMemories
-Input: {"domain": "code_style", "topic": "authentication"}
-Output:
-Memories in code_style/authentication:
-- context.md
-        "#
-      },
-      {
-        role: "user",
-        message: #"
 Tool: ReadMemory
 Input: {"domain": "code_style", "topic": "authentication"}
 Output:
@@ -352,7 +333,7 @@ test test_curate_conflict_resolution {
       We've changed our JWT token expiry times for better security:
       - Access token expiry: 30 minutes (changed from 15 minutes)
       - Refresh token expiry: 14 days (changed from 7 days)
-      
+
       Reason: Reduce the number of token refreshes while maintaining security.
       This change was approved in the security review on Dec 2024.
     "#
@@ -391,16 +372,6 @@ Input: {"domain": "code_style"}
 Output:
 Topics in code_style domain:
 - authentication
-        "#
-      },
-      {
-        role: "user",
-        message: #"
-Tool: ListMemories
-Input: {"domain": "code_style", "topic": "authentication"}
-Output:
-Memories in code_style/authentication:
-- context.md
         "#
       },
       {

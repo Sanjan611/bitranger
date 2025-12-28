@@ -3,7 +3,6 @@ import { ContextTreeStore } from '../contextTree/ContextTreeStore.js';
 type ListDomainsTool = { toolName: 'ListDomains' };
 type ListTopicsTool = { toolName: 'ListTopics'; domain: string };
 type ListSubtopicsTool = { toolName: 'ListSubtopics'; domain: string; topic: string };
-type ListMemoriesTool = { toolName: 'ListMemories'; domain: string; topic: string; subtopic?: string | null };
 type ReadMemoryTool = { toolName: 'ReadMemory'; domain: string; topic: string; subtopic?: string | null };
 type ReadFileTool = { toolName: 'ReadFile'; path: string };
 type WriteMemoryTool = { toolName: 'WriteMemory'; action: 'create' | 'update'; domain: string; topic: string; content: string; subtopic?: string | null };
@@ -22,7 +21,6 @@ export class ToolExecutor {
       | ListDomainsTool
       | ListTopicsTool
       | ListSubtopicsTool
-      | ListMemoriesTool
       | ReadMemoryTool
       | ReadFileTool
       | WriteMemoryTool
@@ -62,18 +60,8 @@ export class ToolExecutor {
           };
         }
 
-        case 'ListMemories': {
-          const t = tool as ListMemoriesTool;
-          const memories = await this.store.listMemories(t.domain, t.topic, t.subtopic || undefined);
-          const location = t.subtopic ? `${t.domain}/${t.topic}/${t.subtopic}` : `${t.domain}/${t.topic}`;
-          return {
-            toolName,
-            input: JSON.stringify({ domain: t.domain, topic: t.topic, subtopic: t.subtopic }),
-            output: `Memories in ${location}:\n${memories.map((m) => `- ${m}`).join('\n')}`,
-          };
-        }
-
         case 'ReadMemory': {
+          // Reads the implicit context.md file at topic or subtopic level
           const t = tool as ReadMemoryTool;
           const content = await this.store.readMemory(t.domain, t.topic, 'context.md', t.subtopic || undefined);
           return {

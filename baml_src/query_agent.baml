@@ -18,8 +18,7 @@ template_string QueryAvailableTools() #"
 - ListDomains: List all domains in the context tree
 - ListTopics: List topics within a specific domain
 - ListSubtopics: List subtopics within a specific topic
-- ListMemories: List memory files within a domain/topic or subtopic
-- ReadMemory: Read the content of a specific memory file
+- ReadMemory: Read the content of the implicit context.md file at topic or subtopic level
 - ReadFile: Read source code files from the project codebase
 - Done: Return the retrieved context with synthesized summary
 "#
@@ -38,10 +37,12 @@ template_string QueryInstructions() #"
 ## Retrieval Strategy
 
 1. **Analyze the query** to understand what information is needed
-2. **Navigate the context tree** to locate relevant memories
-   - Topics have context.md files for overview/general information
-   - Subtopics also have context.md files for specific details
-3. **Read context.md files** at appropriate levels (topic or subtopic)
+2. **Navigate the context tree** to locate relevant context
+   - Each topic has an implicit context.md file (standardized, no need to check existence)
+   - Each subtopic also has its own implicit context.md file
+3. **Read context.md directly** at appropriate levels using ReadMemory
+   - No need to list files first - context.md is always the filename
+   - Navigate to topic or subtopic level based on query specificity
 4. **Follow Relations** to gather comprehensive context:
    - When reading context.md, check for ## Relations section
    - Parse @domain/topic or @domain/topic/subtopic references
@@ -53,16 +54,17 @@ template_string QueryInstructions() #"
 
 **Critical Rules:**
 - **Check message history BEFORE calling any tool** - avoid redundant operations
-- Do NOT read the same memory file twice in sequence (if already read, use that information)
-- Do NOT re-list domains/topics if they're already in message history
+- Do NOT read the same context.md twice (if already in message history, use that information)
+- Do NOT re-list domains/topics/subtopics if they're already in message history
+- ReadMemory directly - context.md is always implicit, no need to check for file existence
 - Gather sufficient context (at least 1-2 relevant sources) before calling Done
 - Extract only relevant excerpts for results (relevantContent field)
 - Synthesize a coherent summary that answers the query
 - Follow relations to gather comprehensive, interconnected context
 
 **Context.md Structure:**
-- Each topic has: domain/topic/context.md (general overview)
-- Each subtopic has: domain/topic/subtopic/context.md (specific details)
+- Each topic has: domain/topic/context.md (general overview, always implicit)
+- Each subtopic has: domain/topic/subtopic/context.md (specific details, always implicit)
 - Both levels can contain ## Relations sections
 - Navigate to the appropriate level based on query specificity
 
@@ -87,42 +89,43 @@ template_string QueryGoodExamples() #"
 **Pattern for SPECIFIC queries** (e.g., "How does authentication work?"):
 1. ListDomains → identify likely domain (e.g., "code_style")
 2. ListTopics (in that domain) → find relevant topic (e.g., "authentication")
-3. ReadMemory (topic-level context.md) → read overview
+3. ReadMemory (topic level) → read overview directly
 4. If needed, ListSubtopics → check for more specific subtopics
-5. Check for ## Relations section → follow relevant links if needed
-6. Done → return results with synthesized summary
+5. ReadMemory (subtopic level if relevant) → read specific details directly
+6. Check for ## Relations sections → follow relevant links if needed
+7. Done → return results with synthesized summary
 
 **Pattern for BROAD queries** (e.g., "What are our coding standards?"):
 1. ListDomains → identify multiple relevant domains (e.g., "code_style", "testing")
 2. ListTopics (in each domain) → find related topics
-3. ReadMemory (2-3 most relevant context.md files at topic level) → gather comprehensive context
+3. ReadMemory (2-3 most relevant topics) → gather comprehensive context directly
 4. Follow Relations from each file to discover connected topics
 5. Done → synthesize summary from all sources
 
 **Pattern with SUBTOPICS** (e.g., "How do we test API endpoints?"):
 1. Navigate to testing domain
 2. ListTopics → find "integration-tests"
-3. ReadMemory (testing/integration-tests/context.md) → read topic-level overview
+3. ReadMemory (topic level) → read overview directly
 4. ListSubtopics → check for "api-tests" subtopic
-5. ReadMemory (testing/integration-tests/api-tests/context.md) → read specific details
+5. ReadMemory (subtopic level) → read specific details directly
 6. Follow relations if present
 7. Done → return results
 
 **Context.md at Multiple Levels:**
-- Topic level: General overview and patterns
+- Topic level: General overview and patterns (always context.md, implicit)
   Example: code_style/error-handling/context.md
-- Subtopic level: Specific implementation details
+- Subtopic level: Specific implementation details (always context.md, implicit)
   Example: testing/integration-tests/api-tests/context.md
 - Read the appropriate level based on query specificity
 
 **Following Relations Example:**
 Query: "What are our error handling best practices?"
-1. Read code_style/error-handling/context.md (topic level)
+1. Read code_style/error-handling/context.md (topic level) directly
 2. Find Relations section with:
    @testing/integration-tests
    @structure/api-design
    @compliance/logging-requirements
-3. Read relevant related files (both topic and subtopic levels as needed)
+3. Read relevant related files (both topic and subtopic levels as needed) directly
 4. Synthesize summary from all connected sources
 "#
 
@@ -147,7 +150,7 @@ Query: {{ query }}
 // MAIN FUNCTION - Composes all template strings
 // =============================================================================
 
-function QueryContext(query: string, domainFilter: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListSubtopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | QueryDoneTool {
+function QueryContext(query: string, domainFilter: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListSubtopicsTool | ReadMemoryTool | ReadFileTool | QueryDoneTool {
   client CustomHaiku
   prompt #"
     {{ QueryAgentIdentity() }}
@@ -238,31 +241,11 @@ Topics in code_style domain:
       {
         role: "user",
         message: #"
-Tool: ListMemories
-Input: {"domain": "code_style", "topic": "authentication"}
-Output:
-Memories in code_style/authentication:
-- context.md
-        "#
-      },
-      {
-        role: "user",
-        message: #"
 Tool: ListTopics
 Input: {"domain": "compliance"}
 Output:
 Topics in compliance domain:
 - security
-        "#
-      },
-      {
-        role: "user",
-        message: #"
-Tool: ListMemories
-Input: {"domain": "compliance", "topic": "security"}
-Output:
-Memories in compliance/security:
-- context.md
         "#
       }
     ]
@@ -310,16 +293,6 @@ Input: {"domain": "code_style"}
 Output:
 Topics in code_style domain:
 - authentication
-        "#
-      },
-      {
-        role: "user",
-        message: #"
-Tool: ListMemories
-Input: {"domain": "code_style", "topic": "authentication"}
-Output:
-Memories in code_style/authentication:
-- context.md
         "#
       },
       {
