@@ -36,6 +36,9 @@ cd your-project
 # Initialize bitranger
 bitranger init
 
+# Or initialize with Cursor integration
+bitranger init --agent cursor
+
 # Check status
 bitranger status
 
@@ -56,14 +59,22 @@ Initializes bitranger in your current repository by creating the necessary direc
 
 **Usage:**
 ```bash
-bitranger init
+bitranger init [options]
 ```
+
+**Options:**
+- `--agent <agent>` - Generate coding agent workflow rules (currently supports: `cursor`)
+- `--path <path>` - Repository root path (default: current directory)
+- `--project-name <name>` - Custom project name
+- `--domains <list>` - Comma-separated list of custom domains
+- `--no-gitignore` - Skip adding .bitranger to .gitignore
 
 **What it does:**
 - Creates `.bitranger/` folder in your repository root
 - Sets up the context tree structure (domains, topics, context files)
 - Creates a configuration file `.bitranger/config.json`
 - Adds `.bitranger/` to `.gitignore` by default (configurable)
+- Optionally generates agent workflow rules (with `--agent` flag)
 
 **Expected Output:**
 ```
@@ -94,11 +105,45 @@ Default domains created:
 cd my-nodejs-api
 bitranger init
 
-# Initialize with custom options (interactive prompts)
-bitranger init
-# Prompts:
-#   Include in git? (y/N)
-#   Project type? (auto-detect/manual)
+# Initialize with Cursor workflow rules
+bitranger init --agent cursor
+
+# Initialize with custom domains
+bitranger init --domains "frontend,backend,api,database"
+
+# Initialize with Cursor rules and custom project name
+bitranger init --agent cursor --project-name "My API"
+```
+
+**Generated Cursor Rules:**
+
+When using `--agent cursor`, bitranger creates `.cursor/rules/bitranger-workflow.mdc` with instructions for Cursor on how to use bitranger CLI:
+
+```markdown
+---
+description: Instructions for using bitranger CLI to manage project context
+alwaysApply: true
+---
+
+# bitranger Workflow Integration
+
+## When to Use `bitranger curate`
+- After architectural decisions
+- After implementing patterns
+- After resolving bugs
+- After completing features
+
+## When to Use `bitranger query`
+- Before starting implementation
+- Before modifying code
+- When debugging
+
+## Quick Reference
+| Command | When | Purpose |
+|---------|------|---------|
+| `bitranger query` | Before starting | Get relevant context |
+| `bitranger curate` | After decisions | Save new knowledge |
+| `bitranger gen-rules` | After curating | Update agent rules |
 ```
 
 ---
@@ -578,23 +623,34 @@ claude --context context.md "Fix error handling in this file"
 
 ### Using with Cursor
 
-**1. Generate Cursor-specific rules:**
+**1. Initialize with Cursor workflow rules:**
+```bash
+bitranger init --agent cursor
+```
+
+This generates `.cursor/rules/bitranger-workflow.mdc` which teaches Cursor how to use bitranger CLI commands.
+
+**2. Cursor automatically uses the workflow rules:**
+- Cursor reads `.cursor/rules/` on startup
+- The rules instruct Cursor when to run `bitranger curate` and `bitranger query`
+- Cursor will proactively use bitranger to manage project context
+
+**3. Generate project context rules:**
 ```bash
 bitranger gen-rules --agent cursor
 ```
 
-**2. Cursor automatically reads `.cursorrules`:**
-- Open Cursor in your project
-- Cursor will detect and use the generated rules
-- Your curated context guides all AI suggestions
+This creates `.cursorrules` with your curated project knowledge.
 
-**3. Update rules as context evolves:**
+**4. Update rules as context evolves:**
 ```bash
 # After adding new context
 bitranger curate "New pattern we're using"
 bitranger gen-rules
 # Cursor picks up updated rules automatically
 ```
+
+**Note:** The workflow rules (`.cursor/rules/bitranger-workflow.mdc`) teach Cursor HOW to use bitranger, while gen-rules (`.cursorrules`) contains WHAT your project's patterns are. Both work together for optimal integration.
 
 ---
 
@@ -710,8 +766,11 @@ your-project/
 │       └── bug_fixes/                     # Domain: Bug Fixes
 │           └── known-issues/
 │               └── context.md
-├── .claude-code-rules.md              # Generated rules for Claude Code
-├── .cursorrules                       # Generated rules for Cursor
+├── .cursor/                           # Created with --agent cursor
+│   └── rules/
+│       └── bitranger-workflow.mdc     # Cursor workflow instructions
+├── .claude-code-rules.md              # Generated with gen-rules
+├── .cursorrules                       # Generated with gen-rules --agent cursor
 └── (your existing project files)
 ```
 
