@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ContextTreeStore } from '../contextTree/ContextTreeStore.js';
-import { writeCursorWorkflowRules } from '../templates/index.js';
+import { writeCursorWorkflowRules, writeClaudeWorkflowRules } from '../templates/index.js';
 
 export function initCommand(program: Command) {
   program
@@ -13,7 +13,7 @@ export function initCommand(program: Command) {
     .option('--domains <list>', 'Comma-separated list of default domains')
     .option('--gitignore', 'Add .bitranger to .gitignore', true)
     .option('--no-gitignore', 'Do not add .bitranger to .gitignore')
-    .option('--agent <agent>', 'Generate agent workflow rules (cursor)')
+    .option('--agent <agent>', 'Generate agent workflow rules (cursor, claude)')
     .action(async (options) => {
       try {
         const store = new ContextTreeStore(options.path);
@@ -65,6 +65,9 @@ export function initCommand(program: Command) {
         if (options.agent === 'cursor') {
           await writeCursorWorkflowRules(options.path);
           console.log(`✓ Generated Cursor workflow rules at .cursor/rules/bitranger-workflow.mdc`);
+        } else if (options.agent === 'claude') {
+          await writeClaudeWorkflowRules(options.path);
+          console.log(`✓ Generated Claude Code workflow rules at .claude/bitranger/CLAUDE.md`);
         }
 
         console.log(`✓ Initialized bitranger in ${options.path}`);
