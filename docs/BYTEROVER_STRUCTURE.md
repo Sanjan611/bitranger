@@ -44,61 +44,65 @@ Relations create explicit connections between context files using the `@domain/t
 
 ```
 .bitranger/
-├── code_style/                    # Domain
-│   ├── error-handling/            # Topic
-│   │   ├── context.md            # Topic-level overview
-│   │   └── api-tests/            # Subtopic (optional)
-│   │       └── context.md        # Subtopic-specific details
-│   └── naming-conventions/
-│       └── context.md
-├── testing/
-│   └── integration-tests/
-│       ├── context.md            # General integration testing info
-│       └── api-tests/
-│           └── context.md        # Specific API test details
-└── structure/
-    └── api-design/
-        └── context.md
+├── config.json
+└── context-tree/
+    ├── code_style/                    # Domain
+    │   ├── error-handling/            # Topic
+    │   │   ├── context.md            # Topic-level overview
+    │   │   └── api-tests/            # Subtopic (optional)
+    │   │       └── context.md        # Subtopic-specific details
+    │   └── naming-conventions/
+    │       └── context.md
+    ├── testing/
+    │   └── integration-tests/
+    │       ├── context.md            # General integration testing info
+    │       └── api-tests/
+    │           └── context.md        # Specific API test details
+    └── structure/
+        └── api-design/
+            └── context.md
 ```
 
 ### Complete Example
 
 ```
 .bitranger/
-├── code_style/
-│   ├── error-handling/
-│   │   ├── context.md
-│   │   └── api-tests/
-│   │       └── context.md
-│   ├── naming-conventions/
-│   │   └── context.md
-│   └── authentication/
-│       └── context.md
-├── testing/
-│   ├── unit-tests/
-│   │   └── context.md
-│   └── integration-tests/
-│       ├── context.md
-│       └── api-tests/
-│           └── context.md
-├── structure/
-│   ├── api-design/
-│   │   └── context.md
-│   └── database-schema/
-│       └── context.md
-├── design/
-│   ├── ui-patterns/
-│   │   └── context.md
-│   └── responsive-design/
-│       └── context.md
-├── compliance/
-│   ├── security/
-│   │   └── context.md
-│   └── logging-requirements/
-│       └── context.md
-└── bug_fixes/
-    └── known-issues/
-        └── context.md
+├── config.json
+└── context-tree/
+    ├── code_style/
+    │   ├── error-handling/
+    │   │   ├── context.md
+    │   │   └── api-tests/
+    │   │       └── context.md
+    │   ├── naming-conventions/
+    │   │   └── context.md
+    │   └── authentication/
+    │       └── context.md
+    ├── testing/
+    │   ├── unit-tests/
+    │   │   └── context.md
+    │   └── integration-tests/
+    │       ├── context.md
+    │       └── api-tests/
+    │           └── context.md
+    ├── structure/
+    │   ├── api-design/
+    │   │   └── context.md
+    │   └── database-schema/
+    │       └── context.md
+    ├── design/
+    │   ├── ui-patterns/
+    │   │   └── context.md
+    │   └── responsive-design/
+    │       └── context.md
+    ├── compliance/
+    │   ├── security/
+    │   │   └── context.md
+    │   └── logging-requirements/
+    │       └── context.md
+    └── bug_fixes/
+        └── known-issues/
+            └── context.md
 ```
 
 ---
@@ -387,35 +391,39 @@ If you have an existing bitranger project with the old structure:
 
 ```
 .bitranger/
-├── Architecture/
-│   └── microservices/
-│       ├── service-communication.md
-│       └── deployment.md
-├── API/
-│   └── authentication/
-│       └── jwt-implementation.md
-└── Frontend/
-    └── components/
-        └── button-patterns.md
+├── config.json
+└── context-tree/
+    ├── Architecture/
+    │   └── microservices/
+    │       ├── service-communication.md
+    │       └── deployment.md
+    ├── API/
+    │   └── authentication/
+    │       └── jwt-implementation.md
+    └── Frontend/
+        └── components/
+            └── button-patterns.md
 ```
 
 ### New Structure
 
 ```
 .bitranger/
-├── structure/
-│   └── microservices/
-│       ├── context.md  # Combines overview
-│       ├── communication/
-│       │   └── context.md  # service-communication details
-│       └── deployment/
-│           └── context.md  # deployment details
-├── code_style/
-│   └── authentication/
-│       └── context.md  # JWT implementation
-└── design/
-    └── components/
-        └── context.md  # button patterns + relations
+├── config.json
+└── context-tree/
+    ├── structure/
+    │   └── microservices/
+    │       ├── context.md  # Combines overview
+    │       ├── communication/
+    │       │   └── context.md  # service-communication details
+    │       └── deployment/
+    │           └── context.md  # deployment details
+    ├── code_style/
+    │   └── authentication/
+    │       └── context.md  # JWT implementation
+    └── design/
+        └── components/
+            └── context.md  # button patterns + relations
 ```
 
 ### Migration Steps

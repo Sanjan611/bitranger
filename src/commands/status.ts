@@ -41,7 +41,7 @@ export function statusCommand(program: Command) {
         console.log('━'.repeat(44));
         console.log('');
         console.log('Configuration:');
-        console.log(`  Location: ${options.path}/.bitranger`);
+        console.log(`  Location: ${options.path}/.bitranger/context-tree`);
         console.log(`  Version: ${config.version}`);
         console.log(`  Git tracking: ${config.gitTracking ? 'Enabled' : 'Disabled'}`);
         console.log('');

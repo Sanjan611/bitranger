@@ -60,7 +60,7 @@ export function initCommand(program: Command) {
         }
 
         console.log(`✓ Initialized bitranger in ${options.path}`);
-        console.log(`✓ Created context tree structure at .bitranger/`);
+        console.log(`✓ Created context tree structure at .bitranger/context-tree/`);
         console.log(`✓ Configuration saved to .bitranger/config.json`);
         console.log('');
         console.log('Your context tree is ready! Start curating with:');

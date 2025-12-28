@@ -683,32 +683,33 @@ After running `bitranger init`, your repository will have:
 your-project/
 ├── .bitranger/
 │   ├── config.json                    # bitranger configuration
-│   ├── code_style/                    # Domain: Code Style
-│   │   ├── error-handling/            # Topic
-│   │   │   ├── context.md            # Topic-level overview
-│   │   │   └── api-tests/            # Subtopic (optional)
-│   │   │       └── context.md        # Subtopic-specific details
-│   │   └── authentication/            # Topic
-│   │       └── context.md
-│   ├── testing/                       # Domain: Testing
-│   │   ├── unit-tests/
-│   │   │   └── context.md
-│   │   └── integration-tests/
-│   │       ├── context.md            # General integration testing
-│   │       └── api-tests/
-│   │           └── context.md        # Specific API test patterns
-│   ├── structure/                     # Domain: Structure
-│   │   └── api-design/
-│   │       └── context.md
-│   ├── design/                        # Domain: Design
-│   │   └── ui-patterns/
-│   │       └── context.md
-│   ├── compliance/                    # Domain: Compliance
-│   │   └── logging-requirements/
-│   │       └── context.md
-│   └── bug_fixes/                     # Domain: Bug Fixes
-│       └── known-issues/
-│           └── context.md
+│   └── context-tree/
+│       ├── code_style/                    # Domain: Code Style
+│       │   ├── error-handling/            # Topic
+│       │   │   ├── context.md            # Topic-level overview
+│       │   │   └── api-tests/            # Subtopic (optional)
+│       │   │       └── context.md        # Subtopic-specific details
+│       │   └── authentication/            # Topic
+│       │       └── context.md
+│       ├── testing/                       # Domain: Testing
+│       │   ├── unit-tests/
+│       │   │   └── context.md
+│       │   └── integration-tests/
+│       │       ├── context.md            # General integration testing
+│       │       └── api-tests/
+│       │           └── context.md        # Specific API test patterns
+│       ├── structure/                     # Domain: Structure
+│       │   └── api-design/
+│       │       └── context.md
+│       ├── design/                        # Domain: Design
+│       │   └── ui-patterns/
+│       │       └── context.md
+│       ├── compliance/                    # Domain: Compliance
+│       │   └── logging-requirements/
+│       │       └── context.md
+│       └── bug_fixes/                     # Domain: Bug Fixes
+│           └── known-issues/
+│               └── context.md
 ├── .claude-code-rules.md              # Generated rules for Claude Code
 ├── .cursorrules                       # Generated rules for Cursor
 └── (your existing project files)
@@ -798,11 +799,12 @@ bitranger uses a structure inspired by [ByteRover](https://docs.byterover.dev/be
 ### Example Structure
 
 ```
-code_style/
-├── error-handling/              # Topic
-│   ├── context.md              # General error handling patterns
-│   └── api-tests/              # Subtopic (specific aspect)
-│       └── context.md          # API-specific error testing
+.bitranger/context-tree/
+└── code_style/
+    └── error-handling/              # Topic
+        ├── context.md              # General error handling patterns
+        └── api-tests/              # Subtopic (specific aspect)
+            └── context.md          # API-specific error testing
 ```
 
 Both `context.md` files can contain a `## Relations` section linking to related context.

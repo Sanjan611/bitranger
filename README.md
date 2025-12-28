@@ -181,15 +181,16 @@ After `bitranger init`, your repository will have:
 your-project/
 ├── .bitranger/
 │   ├── config.json
-│   ├── Architecture/
-│   │   └── System-Design/
-│   │       └── microservices.md
-│   ├── API/
-│   │   └── Authentication/
-│   │       └── jwt-flow.md
-│   └── Frontend/
-│       └── Components/
-│           └── patterns.md
+│   └── context-tree/
+│       ├── Architecture/
+│       │   └── System-Design/
+│       │       └── microservices.md
+│       ├── API/
+│       │   └── Authentication/
+│       │       └── jwt-flow.md
+│       └── Frontend/
+│           └── Components/
+│               └── patterns.md
 ├── .cursorrules              # Generated
 ├── .claude-code-rules.md     # Generated
 └── (your project files)

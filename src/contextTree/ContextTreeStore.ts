@@ -9,11 +9,11 @@ export class ContextTreeStore {
   constructor(private readonly repoRoot: string) {}
 
   private get bitrangerPath(): string {
-    return path.join(this.repoRoot, BITRANGER_DIR);
+    return path.join(this.repoRoot, BITRANGER_DIR, 'context-tree');
   }
 
   private get configPath(): string {
-    return path.join(this.bitrangerPath, CONFIG_FILENAME);
+    return path.join(this.repoRoot, BITRANGER_DIR, CONFIG_FILENAME);
   }
 
   /**
