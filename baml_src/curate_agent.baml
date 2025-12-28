@@ -91,6 +91,9 @@ code_style/
 - Use @domain/topic or @domain/topic/subtopic format
 - Link to related context across the tree for graph-like navigation
 - Relations enable comprehensive context retrieval during queries
+- **CRITICAL: Only add relations to context files that ALREADY EXIST in the context tree**
+- Check the Context Tree Structure or message history to verify existence before adding a relation
+- Do NOT create relations to memories that don't exist yet
 - Example:
   ## Relations
   @code_style/error-handling
@@ -131,11 +134,13 @@ Specific API auth tests → testing/integration-tests/api-tests/context.md
 **Relations Example:**
 When writing context about error handling in APIs:
 1. Create/update: structure/api-design/context.md (topic level)
-2. Add Relations section:
+2. Check Context Tree Structure to verify which related contexts exist
+3. Add Relations section with ONLY existing contexts:
    ## Relations
-   @code_style/error-handling
-   @testing/integration-tests
-   @compliance/logging-requirements
+   @code_style/error-handling        # ✓ Exists in tree
+   @testing/integration-tests        # ✓ Exists in tree
+   @compliance/logging-requirements  # ✓ Exists in tree
+   # Note: Do NOT add @structure/future-feature if it doesn't exist yet
 "#
 
 template_string CurateMessageHistory(messageHistory: AgentMessage[]) #"

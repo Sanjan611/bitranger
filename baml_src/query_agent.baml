@@ -46,6 +46,7 @@ template_string QueryInstructions() #"
 4. **Follow Relations** to gather comprehensive context:
    - When reading context.md, check for ## Relations section
    - Parse @domain/topic or @domain/topic/subtopic references
+   - Relations only point to existing contexts (agents ensure this during curation)
    - Read related context if relevant to the query
    - Build a knowledge graph by following connections
 5. **When sufficient context is gathered**, call Done with:
