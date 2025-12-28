@@ -23,6 +23,18 @@ export function curateCommand(program: Command) {
           process.exit(1);
         }
 
+        // Check for API key
+        if (!process.env.ANTHROPIC_API_KEY) {
+          console.error('❌ ANTHROPIC_API_KEY not found!');
+          console.error('');
+          console.error('Set your API key:');
+          console.error('  1. Create .env file: echo "ANTHROPIC_API_KEY=sk-ant-..." > .env');
+          console.error('  2. Or export: export ANTHROPIC_API_KEY=sk-ant-...');
+          console.error('');
+          console.error('Get your key at: https://console.anthropic.com/settings/keys');
+          process.exit(1);
+        }
+
         // Get content from file if specified
         let actualContent = content;
         if (options.fromFile) {
