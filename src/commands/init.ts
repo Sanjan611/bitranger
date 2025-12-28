@@ -67,7 +67,7 @@ export function initCommand(program: Command) {
           console.log(`✓ Generated Cursor workflow rules at .cursor/rules/bitranger-workflow.mdc`);
         } else if (options.agent === 'claude') {
           await writeClaudeWorkflowRules(options.path);
-          console.log(`✓ Generated Claude Code workflow rules at .claude/bitranger/CLAUDE.md`);
+          console.log(`✓ Generated Claude Code workflow rules at .bitranger/CLAUDE.md`);
         }
 
         console.log(`✓ Initialized bitranger in ${options.path}`);

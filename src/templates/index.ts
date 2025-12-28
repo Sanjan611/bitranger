@@ -143,7 +143,7 @@ export async function writeCursorWorkflowRules(repoRoot: string): Promise<void> 
 }
 
 export async function writeClaudeWorkflowRules(repoRoot: string): Promise<void> {
-  const rulesDir = path.join(repoRoot, '.claude', 'bitranger');
+  const rulesDir = path.join(repoRoot, '.bitranger');
   await fs.mkdir(rulesDir, { recursive: true });
 
   const outputPath = path.join(rulesDir, 'CLAUDE.md');
