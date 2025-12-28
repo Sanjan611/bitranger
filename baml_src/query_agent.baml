@@ -15,7 +15,6 @@ The tree is composed of domains and topics, and each topic contains memory files
 template_string QueryAvailableTools() #"
 ## Available Tools
 
-- ListDomains: List all domains in the context tree
 - ListTopics: List topics within a specific domain
 - ListSubtopics: List subtopics within a specific topic
 - ReadMemory: Read the content of the implicit context.md file at topic or subtopic level
@@ -56,7 +55,7 @@ template_string QueryInstructions() #"
 **Critical Rules:**
 - **Check message history BEFORE calling any tool** - avoid redundant operations
 - Do NOT read the same context.md twice (if already in message history, use that information)
-- Do NOT re-list domains/topics/subtopics if they're already in message history
+- Do NOT re-list topics/subtopics if they're already in message history (domains are in Available Domains header)
 - ReadMemory directly - context.md is always implicit, no need to check for file existence
 - Gather sufficient context (at least 1-2 relevant sources) before calling Done
 - Extract only relevant excerpts for results (relevantContent field)
@@ -88,20 +87,18 @@ template_string QueryGoodExamples() #"
 ## Efficient Retrieval Patterns
 
 **Pattern for SPECIFIC queries** (e.g., "How does authentication work?"):
-1. ListDomains → identify likely domain (e.g., "code_style")
-2. ListTopics (in that domain) → find relevant topic (e.g., "authentication")
-3. ReadMemory (topic level) → read overview directly
-4. If needed, ListSubtopics → check for more specific subtopics
-5. ReadMemory (subtopic level if relevant) → read specific details directly
-6. Check for ## Relations sections → follow relevant links if needed
-7. Done → return results with synthesized summary
+1. Identify relevant domain from Available Domains (e.g., "code_style") → ListTopics (in that domain) → find relevant topic (e.g., "authentication")
+2. ReadMemory (topic level) → read overview directly
+3. If needed, ListSubtopics → check for more specific subtopics
+4. ReadMemory (subtopic level if relevant) → read specific details directly
+5. Check for ## Relations sections → follow relevant links if needed
+6. Done → return results with synthesized summary
 
 **Pattern for BROAD queries** (e.g., "What are our coding standards?"):
-1. ListDomains → identify multiple relevant domains (e.g., "code_style", "testing")
-2. ListTopics (in each domain) → find related topics
-3. ReadMemory (2-3 most relevant topics) → gather comprehensive context directly
-4. Follow Relations from each file to discover connected topics
-5. Done → synthesize summary from all sources
+1. Identify multiple relevant domains from Available Domains (e.g., "code_style", "testing") → ListTopics (in each domain) → find related topics
+2. ReadMemory (2-3 most relevant topics) → gather comprehensive context directly
+3. Follow Relations from each file to discover connected topics
+4. Done → synthesize summary from all sources
 
 **Pattern with SUBTOPICS** (e.g., "How do we test API endpoints?"):
 1. Navigate to testing domain
@@ -151,7 +148,7 @@ Query: {{ query }}
 // MAIN FUNCTION - Composes all template strings
 // =============================================================================
 
-function QueryContext(query: string, domainFilter: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListSubtopicsTool | ReadMemoryTool | ReadFileTool | QueryDoneTool {
+function QueryContext(query: string, domainFilter: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListTopicsTool | ListSubtopicsTool | ReadMemoryTool | ReadFileTool | QueryDoneTool {
   client CustomHaiku
   prompt #"
     {{ QueryAgentIdentity() }}
@@ -181,6 +178,8 @@ test test_query_first_iteration {
   args {
     query "How do we handle errors in the API?"
     contextTreeStructure #"
+      Available domains: code_style, structure, testing
+
       context_tree/
       ├── code_style/
       │   └── error-handling/
@@ -201,6 +200,8 @@ test test_query_mid_iteration {
   args {
     query "What are our authentication best practices?"
     contextTreeStructure #"
+      Available domains: code_style, structure, compliance, testing
+
       context_tree/
       ├── code_style/
       │   └── authentication/
@@ -216,19 +217,6 @@ test test_query_mid_iteration {
               └── context.md
     "#
     messageHistory [
-      {
-        role: "user",
-        message: #"
-Tool: ListDomains
-Input: {}
-Output:
-Available domains:
-- code_style
-- structure
-- compliance
-- testing
-        "#
-      },
       {
         role: "user",
         message: #"
@@ -258,6 +246,8 @@ test test_query_near_completion {
   args {
     query "What are our authentication best practices?"
     contextTreeStructure #"
+      Available domains: code_style, structure, compliance, testing
+
       context_tree/
       ├── code_style/
       │   └── authentication/
@@ -273,19 +263,6 @@ test test_query_near_completion {
               └── context.md
     "#
     messageHistory [
-      {
-        role: "user",
-        message: #"
-Tool: ListDomains
-Input: {}
-Output:
-Available domains:
-- code_style
-- structure
-- compliance
-- testing
-        "#
-      },
       {
         role: "user",
         message: #"

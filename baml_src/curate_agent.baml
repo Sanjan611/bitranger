@@ -15,9 +15,8 @@ Your task is to analyze the provided content and store it appropriately in the c
 template_string CurateAvailableTools() #"
 ## Available Tools
 
-- ListDomains: List all domains in the context tree
-- ListTopics: List topics within a specific domain
-- ListSubtopics: List subtopics within a specific topic
+- ListTopics: List topics within a specific domain. If there are none, returns nothing.
+- ListSubtopics: List subtopics within a specific topic. If there are none, returns nothing.
 - ReadMemory: Read the content of the implicit context.md file at topic or subtopic level
 - ReadFile: Read source code files from the project codebase
 - WriteMemory: Write or update a memory file (action: "create" or "update")
@@ -41,7 +40,7 @@ template_string CurateInstructions() #"
 ## Memory Management Decision Logic
 
 **Determine Action:**
-1. Navigate to the relevant domain/topic using ListDomains and ListTopics (check message history first)
+1. Navigate to the relevant domain/topic using Available Domains (in tree structure) and ListTopics (check message history first)
 2. Attempt to ReadMemory to examine existing context.md (the filename is always context.md, implicit)
 3. Decide on action based on ReadMemory result:
    - **ReadMemory returns error (no file)** → WriteMemory with action="create"
@@ -52,11 +51,12 @@ template_string CurateInstructions() #"
 **Critical Rules:**
 - **Check message history BEFORE calling any tool** - avoid redundant operations
 - Do NOT read the same context.md twice (if already read, use that information)
-- Do NOT re-list domains/topics/subtopics if they're already in message history
+- Do NOT re-list topics/subtopics if they're already in message history (domains are in Available Domains header)
 - ReadMemory errors indicate no existing context.md file (not a failure - proceed with create)
 - Do NOT create a new file if updating existing one is more appropriate
 - Do NOT call Done without WriteMemory (unless content already exists and is complete)
 - ALWAYS merge existing context when updating (don't overwrite valuable information)
+- ASSUME ReadMemory will fail if trying to read for a topic or subtopic that doesn't exist based on ListTopics or ListSubtopics results
 
 **Hierarchical Organization:**
 - Each topic has a context.md file (implicit, no need to specify filename)
@@ -104,19 +104,17 @@ template_string CurateGoodExamples() #"
 ## Efficient Tool Usage Patterns
 
 **Pattern for SIMPLE content** (e.g., "API uses JWT with 15-min expiry"):
-1. ListDomains → identify relevant category
-2. ListTopics (in that domain) → find appropriate topic
-3. ReadMemory (topic level) → attempt to read existing context.md
-4. If ReadMemory succeeds: assess completeness → WriteMemory (update) OR Done
-5. If ReadMemory fails (error): WriteMemory (create) → Done
+1. Identify relevant domain from Available Domains → ListTopics (in that domain) → find appropriate topic
+2. ReadMemory (topic level) → attempt to read existing context.md
+3. If ReadMemory succeeds: assess completeness → WriteMemory (update) OR Done
+4. If ReadMemory fails (error): WriteMemory (create) → Done
 
 **Pattern for COMPLEX content** (e.g., detailed architecture document):
-1. ListDomains → identify target domain
-2. ListTopics → find appropriate topic
-3. ReadMemory (topic level) → attempt to read existing overview
-4. If needed, ListSubtopics → check for relevant subtopic organization
-5. ReadMemory (subtopic level if relevant) → assess overlap/conflict
-6. WriteMemory (create or update context.md at topic or subtopic level) → Done
+1. Identify target domain from Available Domains → ListTopics → find appropriate topic
+2. ReadMemory (topic level) → attempt to read existing overview
+3. If needed, ListSubtopics → check for relevant subtopic organization
+4. ReadMemory (subtopic level if relevant) → assess overlap/conflict
+5. WriteMemory (create or update context.md at topic or subtopic level) → Done
 
 **Pattern with SUBTOPICS** (when content needs sub-organization):
 1. Navigate to domain and topic as usual
@@ -165,7 +163,7 @@ Content to curate:
 // MAIN FUNCTION - Composes all template strings
 // =============================================================================
 
-function CurateContext(content: string, domainHint: string?, topicHint: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListSubtopicsTool | ReadMemoryTool | ReadFileTool | WriteMemoryTool | CurateDoneTool {
+function CurateContext(content: string, domainHint: string?, topicHint: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListTopicsTool | ListSubtopicsTool | ReadMemoryTool | ReadFileTool | WriteMemoryTool | CurateDoneTool {
   client CustomHaiku
   prompt #"
     {{ CurateAgentIdentity() }}
@@ -195,6 +193,8 @@ test test_curate_first_iteration {
   args {
     content "Our API uses Redis for caching with 1-hour TTL. The cache key format is 'cache:{resource}:{id}' and we use Redis SET with EX option."
     contextTreeStructure #"
+      Available domains: code_style, testing, structure
+
       context_tree/
       ├── code_style/
       │   └── error-handling/
@@ -224,6 +224,8 @@ test test_curate_mid_iteration {
     domainHint "compliance"
     topicHint "rate-limiting"
     contextTreeStructure #"
+      Available domains: code_style, compliance, structure
+
       context_tree/
       ├── code_style/
       │   └── error-handling/
@@ -236,18 +238,6 @@ test test_curate_mid_iteration {
               └── context.md
     "#
     messageHistory [
-      {
-        role: "user",
-        message: #"
-Tool: ListDomains
-Input: {}
-Output:
-Available domains:
-- code_style
-- compliance
-- structure
-        "#
-      },
       {
         role: "user",
         message: #"
@@ -269,6 +259,8 @@ test test_curate_near_completion {
     domainHint "code_style"
     topicHint "authentication"
     contextTreeStructure #"
+      Available domains: code_style, testing, compliance
+
       context_tree/
       ├── code_style/
       │   └── authentication/
@@ -281,18 +273,6 @@ test test_curate_near_completion {
               └── context.md
     "#
     messageHistory [
-      {
-        role: "user",
-        message: #"
-Tool: ListDomains
-Input: {}
-Output:
-Available domains:
-- code_style
-- testing
-- compliance
-        "#
-      },
       {
         role: "user",
         message: #"
@@ -345,6 +325,8 @@ test test_curate_conflict_resolution {
     domainHint "code_style"
     topicHint "authentication"
     contextTreeStructure #"
+      Available domains: code_style, testing, compliance
+
       context_tree/
       ├── code_style/
       │   └── authentication/
@@ -357,18 +339,6 @@ test test_curate_conflict_resolution {
               └── context.md
     "#
     messageHistory [
-      {
-        role: "user",
-        message: #"
-Tool: ListDomains
-Input: {}
-Output:
-Available domains:
-- code_style
-- testing
-- compliance
-        "#
-      },
       {
         role: "user",
         message: #"

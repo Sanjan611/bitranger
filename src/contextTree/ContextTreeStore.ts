@@ -300,7 +300,10 @@ export class ContextTreeStore {
    */
   async getTreeStructure(): Promise<string> {
     const domains = await this.listDomains();
-    const lines: string[] = ['context_tree/'];
+
+    // Add domains header for agent visibility
+    const header = `Available domains: ${domains.join(', ')}\n`;
+    const lines: string[] = [header, 'context_tree/'];
 
     for (let i = 0; i < domains.length; i++) {
       const domain = domains[i];

@@ -1,6 +1,5 @@
 import { ContextTreeStore } from '../contextTree/ContextTreeStore.js';
 
-type ListDomainsTool = { toolName: 'ListDomains' };
 type ListTopicsTool = { toolName: 'ListTopics'; domain: string };
 type ListSubtopicsTool = { toolName: 'ListSubtopics'; domain: string; topic: string };
 type ReadMemoryTool = { toolName: 'ReadMemory'; domain: string; topic: string; subtopic?: string | null };
@@ -18,7 +17,6 @@ export class ToolExecutor {
 
   async execute(
     tool:
-      | ListDomainsTool
       | ListTopicsTool
       | ListSubtopicsTool
       | ReadMemoryTool
@@ -31,15 +29,6 @@ export class ToolExecutor {
 
     try {
       switch (toolName) {
-        case 'ListDomains': {
-          const domains = await this.store.listDomains();
-          return {
-            toolName,
-            input: JSON.stringify({}),
-            output: `Available domains:\n${domains.map((d) => `- ${d}`).join('\n')}`,
-          };
-        }
-
         case 'ListTopics': {
           const t = tool as ListTopicsTool;
           const topics = await this.store.listTopics(t.domain);

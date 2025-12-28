@@ -24,11 +24,6 @@ class RetrievedContext {
 // NAVIGATION TOOLS (Read-only, shared by both agents)
 // =============================================================================
 
-// Tool to list all domains in the context tree
-class ListDomainsTool {
-  toolName "ListDomains"
-}
-
 // Tool to list all topics within a specific domain
 class ListTopicsTool {
   toolName "ListTopics"
