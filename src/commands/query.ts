@@ -17,7 +17,7 @@ export function queryCommand(program: Command) {
         const store = new ContextTreeStore(options.path);
 
         if (!(await store.isInitialized())) {
-          console.error('Error: bitranger not initialized in this repository');
+          console.error('Error: BitRanger not initialized in this repository');
           console.error("Run 'bitranger init' first");
           process.exit(1);
         }

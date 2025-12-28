@@ -1,330 +1,165 @@
-# bitranger
+# BitRanger
 
 > Local context management CLI for coding agents
 
-**bitranger** is a TypeScript CLI tool that helps developers capture and organize project knowledge into a hierarchical context tree. It's designed to work seamlessly with coding agents like Claude Code, Cursor, and other AI assistants.
+**BitRanger** is a TypeScript CLI tool that helps developers capture, organize, and retrieve project knowledge through a hierarchical context tree. Designed to work seamlessly with AI coding agents like Claude Code, Cursor, and other assistants, BitRanger ensures your agents always have the right context at their fingertips.
 
-Unlike cloud-based solutions, bitranger stores all context locally in your repository under the `.bitranger/` folder, giving you complete control over your project knowledge.
+Unlike cloud-based solutions, BitRanger stores all context locally in your repository under the `.bitranger/` folder, giving you complete control over your project knowledge.
 
-## Features
+## Inspiration
 
-- 🌳 **Hierarchical Context Tree**: Organize knowledge in Domains → Topics → Memories
-- 🤖 **Agent-Driven Search**: Navigate context like a developer, not vector similarity
-- 🔒 **Local-First**: All data stored in your repository
-- 📝 **Auto-Generated Rules**: Create `.cursorrules` and `.claude-code-rules.md` from context
-- 🚀 **Zero Configuration**: Works out of the box with sensible defaults
+BitRanger is heavily inspired by [ByteRover CLI](https://www.byterover.dev/) and many features and user experience are drawn from it.
 
-## Installation
+## Why BitRanger?
 
-### Global Installation
+Modern AI coding agents are powerful, but they struggle with context. They either:
+- Get too little context and miss important patterns
+- Get too much context (entire codebases) and waste tokens on irrelevant information
 
-```bash
-npm install -g bitranger
-```
+BitRanger solves this by letting you **curate** the knowledge that matters most, organized in a way that agents can efficiently navigate and retrieve.
 
-Then use anywhere:
+## Key Features
 
-```bash
-bitranger init
-bitranger curate "Your context here"
-```
+- **Hierarchical Context Tree**: Organize knowledge in Domains → Topics → Subtopics → Memories
+- **Agentic Search**: Navigate context like a developer would, not through vector similarity
+- **Local-First Storage**: All data stored in your repository under `.bitranger/`
+- **Auto-Generated Rules**: Create `.cursorrules` and `.claude-code-rules.md` from curated context
+- **Relation Graph**: Link related contexts across your tree for comprehensive retrieval
+- **Zero Configuration**: Works out of the box with sensible defaults
 
-### Project-Local Installation
+## Use Cases
 
-```bash
-npm install --save-dev bitranger
-```
+### 1. Onboarding New Team Members
 
-Then use with `npx`:
+Curate architectural decisions, coding patterns, and project conventions so new developers (and their AI assistants) can quickly understand the codebase:
 
 ```bash
-npx bitranger init
-npx bitranger curate "Your context here"
+bitranger curate "We use the Repository pattern for data access. All database operations go through repository classes in src/repositories/"
+bitranger curate "Error responses follow RFC 7807 Problem Details format with type, title, status, and detail fields"
 ```
 
-## Prerequisites
+### 2. Maintaining Coding Standards
 
-- **Node.js**: >= 24.0.0
-- **API Keys**: Set up environment variables for your LLM provider:
-  - `OPENAI_API_KEY` (for OpenAI/GPT models)
-  - `ANTHROPIC_API_KEY` (for Claude models)
-
-You can create a `.env` file in your project root:
+Keep your AI agents aligned with project-specific patterns:
 
 ```bash
-# .env
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
+bitranger curate "All API endpoints must validate input using Zod schemas defined in src/schemas/"
+bitranger curate "Use dependency injection via constructor parameters, not service locators"
+bitranger gen-rules --agent cursor
 ```
+
+### 3. Documenting Complex Workflows
+
+Capture multi-step processes that span multiple files:
+
+```bash
+bitranger curate --from-file docs/payment-flow.md --domain Transactions --topic PaymentProcessing
+bitranger query "How does payment processing work?"
+```
+
+### 4. Context-Aware Code Generation
+
+Before implementing a new feature, query relevant context:
+
+```bash
+bitranger query "authentication, rate limiting, error handling"
+# AI agent now has precise context for implementation
+```
+
+### 5. Preserving Tribal Knowledge
+
+Document those "you just have to know" details:
+
+```bash
+bitranger curate "The legacy /api/v1/users endpoint has a quirk: it returns 201 for updates (not 200) for backwards compatibility with mobile app v2.x"
+```
+
+## How It Works
+
+BitRanger uses **BAML-powered agents** to intelligently organize and retrieve context:
+
+1. **Curate Agent**: When you add context, the agent analyzes the content and places it in the appropriate location within your context tree, creating connections to related topics
+
+2. **Query Agent**: When you search for context, the agent navigates the tree structure, follows relation links, and synthesizes a comprehensive response from multiple sources
+
+This agentic approach means context is organized semantically (by meaning and relationships) rather than just lexically (by keywords).
+
+## Technology
+
+- **[BAML](https://boundaryml.com)**: Domain-specific language for defining AI agents with structured outputs
+- **LLM Tool-Use**: Agents navigate the context tree through function calls
+- **Filesystem Storage**: Plain markdown files for easy inspection and version control
+- **TypeScript**: Full type safety throughout
 
 ## Quick Start
 
 ```bash
-# 1. Navigate to your project
-cd your-project
+# Clone and install BitRanger
+git clone https://github.com/yourusername/bitranger.git
+cd bitranger
+npm install && npm run build
+npm link
 
-# 2. Initialize bitranger
+# Initialize in your project
+cd your-project
 bitranger init
 
-# 3. Add context
+# Add some context
 bitranger curate "Our API uses JWT tokens with 15-minute expiry"
 
-# 4. Query context
+# Query context
 bitranger query "How does authentication work?"
 
-# 5. Generate rules for coding agents
+# Generate rules for your AI agent
 bitranger gen-rules
 ```
 
-## Commands
+See [SETUP.md](./SETUP.md) for detailed installation and configuration instructions.
 
-### `bitranger init`
+## Commands Overview
 
-Initialize bitranger in your repository.
+| Command | Description |
+|---------|-------------|
+| `bitranger init` | Initialize BitRanger in your repository |
+| `bitranger status` | Display context tree status and statistics |
+| `bitranger curate` | Capture and organize context into the tree |
+| `bitranger query` | Retrieve relevant context from the tree |
+| `bitranger gen-rules` | Generate agent rule files from context |
+| `bitranger clear` | Remove curated content (preserves structure) |
 
-```bash
-bitranger init
-bitranger init --project-name my-app --domains "Backend,Frontend,Mobile"
-```
-
-**Options:**
-- `--path <path>` - Repository root (default: current directory)
-- `--project-name <name>` - Project name
-- `--domains <list>` - Comma-separated default domains
-- `--gitignore` / `--no-gitignore` - Add `.bitranger` to .gitignore (default: true)
-
-### `bitranger status`
-
-Display context tree status and statistics.
-
-```bash
-bitranger status
-bitranger status --verbose --json
-```
-
-**Options:**
-- `--path <path>` - Repository root
-- `--verbose` - Show detailed tree structure
-- `--json` - Output as JSON
-
-### `bitranger curate <content>`
-
-Capture and organize context.
-
-```bash
-bitranger curate "JWT tokens expire after 15 minutes"
-bitranger curate --from-file ./docs/architecture.md
-bitranger curate "Redis for caching" --domain Backend --topic Infrastructure
-```
-
-**Options:**
-- `--path <path>` - Repository root
-- `--domain <domain>` - Domain hint for categorization
-- `--topic <topic>` - Topic hint for categorization
-- `--from-file <path>` - Import content from file
-- `--format <format>` - Output format: `json` or `plain` (default: plain)
-
-### `bitranger query <query>`
-
-Retrieve relevant context from the tree.
-
-```bash
-bitranger query "authentication flow"
-bitranger query "error handling" --format json
-bitranger query "API patterns" --out context.md
-```
-
-**Options:**
-- `--path <path>` - Repository root
-- `--domain <domain>` - Filter by specific domain
-- `--format <format>` - Output format: `markdown`, `plain`, or `json` (default: markdown)
-- `--out <file>` - Save results to file
-
-### `bitranger gen-rules`
-
-Generate agent rule files from curated context.
-
-```bash
-bitranger gen-rules
-bitranger gen-rules --agent cursor
-bitranger gen-rules --output custom-rules.md
-```
-
-**Options:**
-- `--path <path>` - Repository root
-- `--agent <agent>` - Target agent: `cursor`, `claude-code`, or `both` (default: both)
-- `--output <file>` - Custom output file path
-- `--merge` - Merge with existing rules
-
-### `bitranger clear`
-
-Remove curated context (preserves structure and config).
-
-```bash
-bitranger clear
-bitranger clear --domain Backend
-bitranger clear --force
-```
-
-**Options:**
-- `--path <path>` - Repository root
-- `--force` - Skip confirmation prompt
-- `--domain <domain>` - Clear specific domain only
-- `--topic <topic>` - Clear specific topic (requires --domain)
-- `--backup` - Create backup before clearing
+Run `bitranger <command> --help` for detailed options.
 
 ## Directory Structure
 
-After `bitranger init`, your repository will have:
+After initialization:
 
 ```
 your-project/
 ├── .bitranger/
-│   ├── config.json
-│   └── context-tree/
+│   ├── config.json              # BitRanger configuration
+│   └── context-tree/            # Your curated knowledge
 │       ├── Architecture/
 │       │   └── System-Design/
-│       │       └── microservices.md
+│       │       └── context.md
 │       ├── API/
 │       │   └── Authentication/
-│       │       └── jwt-flow.md
+│       │       └── context.md
 │       └── Frontend/
 │           └── Components/
-│               └── patterns.md
-├── .cursorrules              # Generated
-├── .claude-code-rules.md     # Generated
+│               └── context.md
+├── .cursorrules                 # Generated for Cursor
+├── .claude-code-rules.md        # Generated for Claude Code
 └── (your project files)
 ```
 
-## Usage with Coding Agents
+## Contributing
 
-### Cursor
-
-```bash
-# Generate Cursor rules
-bitranger gen-rules --agent cursor
-
-# Cursor automatically reads .cursorrules
-# Your curated context now guides all AI suggestions
-```
-
-### Claude Code
-
-```bash
-# Generate Claude Code rules
-bitranger gen-rules --agent claude-code
-
-# Claude Code reads .claude-code-rules.md
-# Use in your prompts:
-claude "Implement new auth endpoint following our patterns"
-```
-
-## Example Workflow
-
-```bash
-# 1. Start a new feature
-bitranger query "authentication, API patterns, error handling"
-
-# 2. Implement with your coding agent
-# (agent uses generated rules from context)
-
-# 3. Document new knowledge
-bitranger curate "Password reset uses email token with 1-hour expiry"
-
-# 4. Update agent rules
-bitranger gen-rules
-```
-
-## Configuration
-
-Edit `.bitranger/config.json` to customize:
-
-```json
-{
-  "version": "1.0.0",
-  "projectName": "my-app",
-  "gitTracking": false,
-  "agents": {
-    "claudeCode": {
-      "enabled": true,
-      "rulesFile": ".claude-code-rules.md"
-    },
-    "cursor": {
-      "enabled": true,
-      "rulesFile": ".cursorrules"
-    }
-  },
-  "contextTree": {
-    "autoOrganize": true,
-    "defaultDomains": ["Architecture", "API", "Frontend"]
-  }
-}
-```
-
-## Architecture
-
-bitranger uses:
-
-- **BAML agents** for intelligent context organization and retrieval
-- **Agentic search** instead of vector embeddings (navigation over similarity)
-- **Filesystem-based storage** for persistence and version control
-- **LLM tool-use** for structured context tree traversal
-
-## Development
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/bitranger.git
-cd bitranger
-
-# Install dependencies
-npm install
-
-# Generate BAML TypeScript client
-npm run generate:baml
-
-# Build
-npm run build
-
-# Test locally
-node dist/cli.js init
-```
-
-## Troubleshooting
-
-### "bitranger not initialized"
-
-```bash
-bitranger init
-```
-
-### "No API key found"
-
-Set environment variables:
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-# or create .env file in your project
-```
-
-### Context tree empty
-
-```bash
-bitranger status
-# If empty, start adding context:
-bitranger curate "Your first piece of context"
-```
+Contributions welcome! Please open an issue or PR on GitHub.
 
 ## License
 
 MIT
 
-## Contributing
-
-Contributions welcome! Please open an issue or PR.
-
 ---
 
-Built with [BAML](https://boundaryml.com) • Inspired by [ByteRover](https://byterover.dev)
-
-
+Built with [BAML](https://boundaryml.com) | Inspired by [ByteRover](https://byterover.dev)

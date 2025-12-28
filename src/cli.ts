@@ -14,7 +14,7 @@ const program = new Command();
 
 program
   .name('bitranger')
-  .description('Local context management CLI for coding agents')
+  .description('BitRanger - Local context management CLI for coding agents')
   .version('0.1.0');
 
 // Register commands

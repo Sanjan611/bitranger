@@ -1,7 +1,7 @@
 {
   "name": "bitranger",
   "version": "0.1.0",
-  "description": "Local context management CLI for coding agents",
+  "description": "BitRanger - Local context management CLI for coding agents",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

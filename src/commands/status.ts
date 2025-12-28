@@ -13,7 +13,7 @@ export function statusCommand(program: Command) {
         const store = new ContextTreeStore(options.path);
 
         if (!(await store.isInitialized())) {
-          console.error('Error: bitranger not initialized in this repository');
+          console.error('Error: BitRanger not initialized in this repository');
           console.error("Run 'bitranger init' first");
           process.exit(1);
         }
@@ -37,7 +37,7 @@ export function statusCommand(program: Command) {
         }
 
         // Human-readable output
-        console.log('bitranger Status');
+        console.log('BitRanger Status');
         console.log('━'.repeat(44));
         console.log('');
         console.log('Configuration:');

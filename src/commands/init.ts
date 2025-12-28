@@ -7,7 +7,7 @@ import { writeCursorWorkflowRules, writeClaudeWorkflowRules } from '../templates
 export function initCommand(program: Command) {
   program
     .command('init')
-    .description('Initialize bitranger in the current repository')
+    .description('Initialize BitRanger in the current repository')
     .option('--path <path>', 'Repository root path', process.cwd())
     .option('--project-name <name>', 'Project name')
     .option('--domains <list>', 'Comma-separated list of default domains')
@@ -18,7 +18,7 @@ export function initCommand(program: Command) {
 
         // Check if already initialized
         if (await store.isInitialized()) {
-          console.error('Error: bitranger is already initialized in this repository');
+          console.error('Error: BitRanger is already initialized in this repository');
           process.exit(1);
         }
 
@@ -46,7 +46,7 @@ export function initCommand(program: Command) {
           console.log(`✓ Generated Claude Code workflow rules at .bitranger/CLAUDE.md`);
         }
 
-        console.log(`✓ Initialized bitranger in ${options.path}`);
+        console.log(`✓ Initialized BitRanger in ${options.path}`);
         console.log(`✓ Created context tree structure at .bitranger/context-tree/`);
         console.log(`✓ Configuration saved to .bitranger/config.json`);
         console.log('');

@@ -8,7 +8,7 @@ async function generateRulesContent(store: ContextTreeStore): Promise<string> {
   const domains = await store.listDomains();
 
   let content = '# Project Rules for AI Assistants\n\n';
-  content += `Generated from bitranger context tree for ${config.projectName}\n\n`;
+  content += `Generated from BitRanger context tree for ${config.projectName}\n\n`;
 
   for (const domain of domains) {
     const topics = await store.listTopics(domain);
@@ -47,7 +47,7 @@ export function genRulesCommand(program: Command) {
         const store = new ContextTreeStore(options.path);
 
         if (!(await store.isInitialized())) {
-          console.error('Error: bitranger not initialized in this repository');
+          console.error('Error: BitRanger not initialized in this repository');
           console.error("Run 'bitranger init' first");
           process.exit(1);
         }
