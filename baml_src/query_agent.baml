@@ -1,97 +1,166 @@
 // Query Agent - Retrieves relevant context from the context tree
 // This agent is responsible for finding and synthesizing knowledge.
 
-// QueryContext agent - retrieves relevant context from the context tree
+// =============================================================================
+// TEMPLATE STRINGS - Reusable prompt sections
+// =============================================================================
+
+template_string QueryAgentIdentity() #"
+You are an agent that queries for memories for the Bitranger memory management system.
+You are responsible for finding and returning relevant context from the context tree to answer
+the user's query. You navigate the tree structure intelligently and synthesize information from multiple sources when needed.
+The tree is composed of domains and topics, and each topic contains memory files.
+"#
+
+template_string QueryAvailableTools() #"
+## Available Tools
+
+- ListDomains: List all domains in the context tree
+- ListTopics: List topics within a specific domain
+- ListMemories: List memory files within a domain/topic
+- ReadMemory: Read the content of a specific memory file
+- ReadFile: Read source code files from the project codebase
+- Done: Return the retrieved context with synthesized summary
+"#
+
+template_string QueryContextTreeStructure(contextTreeStructure: string, domainFilter: string?) #"
+## Context Tree Structure
+
+{{ contextTreeStructure }}
+
+{% if domainFilter %}
+Domain Filter: Focus your search on the "{{ domainFilter }}" domain
+{% endif %}
+"#
+
+template_string QueryInstructions() #"
+## Retrieval Strategy
+
+1. **Analyze the query** to understand what information is needed
+2. **Navigate the context tree** to locate relevant memories
+3. **Read memory files** that contain the information
+4. **When sufficient context is gathered**, call Done with:
+   - results: Array of relevant context pieces (include specific excerpts, not entire files)
+   - summary: A synthesized answer based on the retrieved context
+
+**Critical Rules:**
+- **Check message history BEFORE calling any tool** - avoid redundant operations
+- Do NOT read the same memory file twice in sequence (if already read, use that information)
+- Do NOT re-list domains/topics if they're already in message history
+- Gather sufficient context (at least 1-2 relevant sources) before calling Done
+- Extract only relevant excerpts for results (relevantContent field)
+- Synthesize a coherent summary that answers the query
+
+**Context Synthesis Guidelines:**
+
+When calling Done:
+- **relevantContent**: Include specific excerpts that answer the query, not entire file contents
+- **summary**: Provide a clear, synthesized answer that combines information from all sources
+- **Citations**: Clearly indicate which domain/topic/filename each piece of information came from
+"#
+
+template_string QueryGoodExamples() #"
+## Efficient Retrieval Patterns
+
+**Pattern for SPECIFIC queries** (e.g., "How does authentication work?"):
+1. ListDomains → identify likely domain (e.g., "API" or "Backend")
+2. ListTopics (in that domain) → find relevant topic (e.g., "Authentication")
+3. ReadMemory → read the specific file
+4. Done → return results with synthesized summary
+
+**Pattern for BROAD queries** (e.g., "What are our coding standards?"):
+1. ListDomains → identify multiple relevant domains
+2. ListTopics (in each domain) → find related topics
+3. ReadMemory (2-3 most relevant files) → gather comprehensive context
+4. Done → synthesize summary from all sources
+"#
+
+template_string QueryMessageHistory(messageHistory: AgentMessage[]) #"
+{% if messageHistory %}
+## Previous Actions
+
+{% for msg in messageHistory %}
+{{ _.role(msg.role) }}
+{{ msg.message }}
+
+{% endfor %}
+{% endif %}
+"#
+
+template_string QueryUserRequest(query: string) #"
+{{ _.role("user") }}
+Query: {{ query }}
+"#
+
+// =============================================================================
+// MAIN FUNCTION - Composes all template strings
+// =============================================================================
+
 function QueryContext(query: string, domainFilter: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | QueryDoneTool {
   client CustomHaiku
   prompt #"
-    You are a context retrieval agent for the bitranger knowledge management system.
-    Your task is to find and return relevant context from the context tree to answer the user's query.
+    {{ QueryAgentIdentity() }}
 
-    ## Context Tree Structure
-    {{ contextTreeStructure }}
+    {{ QueryAvailableTools() }}
 
-    ## Your Available Tools
-    - ListDomains: List all domains in the context tree
-    - ListTopics: List topics within a specific domain
-    - ListMemories: List memory files within a domain/topic
-    - ReadMemory: Read the content of a specific memory file
-    - ReadFile: Read source code files from the project codebase
-    - Done: Return the retrieved context and summary
+    {{ QueryContextTreeStructure(contextTreeStructure, domainFilter) }}
 
-    ## Instructions
-    1. Analyze the query to understand what information is needed
-    2. Navigate the context tree to find relevant memories
-    3. Read memory files that might contain relevant information
-    4. When you have gathered enough context, call Done with:
-       - results: Array of relevant context pieces with their sources
-       - summary: A synthesized answer based on the retrieved context
+    {{ QueryInstructions() }}
 
-    {% if domainFilter %}
-    Domain Filter: Focus your search on the "{{ domainFilter }}" domain
-    {% endif %}
+    {{ QueryGoodExamples() }}
 
-    ## Conversation History
-    {% if messageHistory %}
-    {% for msg in messageHistory %}
-    {{ _.role(msg.role) }}
-    {{ msg.message }}
+    {{ QueryMessageHistory(messageHistory) }}
 
-    {% endfor %}
-    {% endif %}
-
-    ## Efficient Retrieval Patterns
-
-    Good pattern for SPECIFIC queries (e.g., "How does auth work?"):
-    1. ListDomains → identify likely domain (e.g., "API" or "Backend")
-    2. ListTopics → find relevant topic (e.g., "Authentication")
-    3. ReadMemory → read the specific file
-    4. Done → return results with summary
-
-    Good pattern for BROAD queries (e.g., "What are our coding standards?"):
-    1. ListDomains → identify multiple relevant domains
-    2. ListTopics (in each relevant domain) → find all related topics
-    3. ReadMemory (multiple targeted files) → gather comprehensive context
-    4. Done → synthesize a summary from all sources
-
-    AVOID:
-    - Reading every memory file in a topic when only one is relevant
-    - Exploring unrelated domains when the query is specific
-    - Calling Done before gathering sufficient context
-    - Re-listing domains/topics you've already seen
-
-    Aim for 4-6 tool calls for specific queries.
-    For broad queries, 8-12 tool calls is acceptable.
-
-    {{ _.role("user") }}
-    Query: {{ query }}
+    {{ QueryUserRequest(query) }}
 
     {{ ctx.output_format }}
   "#
 }
 
-test query_authentication_system {
+// =============================================================================
+// TESTS
+// =============================================================================
+
+test test_query_first_iteration {
   functions [QueryContext]
   args {
-    query "How does our authentication system work?"
+    query "How do we handle errors in the API?"
     contextTreeStructure #"
       context_tree/
       ├── engineering/
       │   ├── backend/
-      │   │   ├── api-design-principles.md
-      │   │   └── authentication-flow.md
+      │   │   ├── api-design.md
+      │   │   ├── error-handling.md
+      │   │   └── authentication.md
+      │   └── frontend/
+      │       └── components.md
+      └── product/
+          └── features/
+              └── onboarding.md
+    "#
+    messageHistory []
+  }
+}
+
+test test_query_mid_iteration {
+  functions [QueryContext]
+  args {
+    query "What are our authentication best practices?"
+    contextTreeStructure #"
+      context_tree/
+      ├── engineering/
+      │   ├── backend/
+      │   │   ├── api-design.md
+      │   │   ├── error-handling.md
+      │   │   └── authentication.md
       │   ├── frontend/
-      │   │   └── component-architecture.md
-      │   └── infrastructure/
-      │       └── deployment-pipeline.md
-      ├── product/
-      │   ├── features/
-      │   │   └── user-onboarding.md
-      │   └── decisions/
-      │       └── pricing-model.md
-      └── operations/
-          └── runbooks/
-              └── incident-response.md
+      │   │   └── components.md
+      │   └── security/
+      │       ├── authentication-practices.md
+      │       └── encryption.md
+      └── product/
+          └── features/
+              └── onboarding.md
     "#
     messageHistory [
       {
@@ -103,7 +172,6 @@ Output:
 Available domains:
 - engineering
 - product
-- operations
         "#
       },
       {
@@ -115,7 +183,7 @@ Output:
 Topics in engineering domain:
 - backend
 - frontend
-- infrastructure
+- security
         "#
       },
       {
@@ -125,104 +193,133 @@ Tool: ListMemories
 Input: {"domain": "engineering", "topic": "backend"}
 Output:
 Memories in engineering/backend:
-- api-design-principles.md
-- authentication-flow.md
-        "#
-      },
-      {
-        role: "user",
-        message: #"
-Tool: ReadMemory
-Input: {"domain": "engineering", "topic": "backend", "filename": "authentication-flow.md"}
-Output:
-# Authentication Flow
-
-          ## Overview
-          Our authentication system uses JWT (JSON Web Tokens) for stateless authentication across all API endpoints and services.
-
-          ## Authentication Process
-
-          ### 1. User Login
-          - User submits credentials (email + password) to POST /v1/auth/login
-          - Backend validates credentials against PostgreSQL user database
-          - Passwords are hashed using bcrypt with salt rounds of 12
-
-          ### 2. Token Generation
-          On successful authentication:
-          - Generate access token (JWT) with 15-minute expiration
-          - Generate refresh token with 7-day expiration
-          - Access token payload includes:
-            ```json
-            {
-              "sub": "user_id",
-              "email": "user@example.com",
-              "role": "user|admin|premium",
-              "iat": 1234567890,
-              "exp": 1234568790
-            }
-            ```
-
-          ### 3. Token Storage
-          - Access token: Stored in memory (React context) on frontend
-          - Refresh token: Stored in httpOnly secure cookie
-          - Never store tokens in localStorage (XSS vulnerability)
-
-          ### 4. API Request Authentication
-          - Client includes access token in Authorization header: `Bearer <token>`
-          - API Gateway validates token signature and expiration
-          - If valid, request proceeds with user context
-          - If expired, client must refresh using refresh token
-
-          ### 5. Token Refresh Flow
-          - Client sends refresh token to POST /v1/auth/refresh
-          - Backend validates refresh token
-          - If valid, issues new access token (and optionally new refresh token)
-          - If invalid or expired, user must re-login
-
-          ## Security Features
-
-          ### Token Security
-          - JWT signed with RS256 (asymmetric encryption)
-          - Private key stored in AWS Secrets Manager
-          - Public key distributed to all services for validation
-          - Token includes jti (JWT ID) for revocation support
-
-          ### Additional Protection
-          - Rate limiting on auth endpoints (5 attempts per 15 minutes)
-          - Account lockout after 5 failed login attempts
-          - Email notification on suspicious login activity
-          - IP-based anomaly detection for geographic mismatches
-
-          ### Session Management
-          - Refresh tokens stored in Redis with user_id as key
-          - Support for multiple active sessions (up to 5 devices)
-          - Explicit logout invalidates refresh token in Redis
-          - "Logout all devices" endpoint clears all user sessions
-
-          ## Integration Points
-          - Works with OAuth2 providers (Google, GitHub) via separate endpoints
-          - SSO support for enterprise customers using SAML 2.0
-          - Mobile apps use same JWT flow with device fingerprinting
-          - Microservices validate tokens using shared public key
-
-          ## Monitoring
-          - Track authentication success/failure rates
-          - Alert on unusual spike in failed attempts
-          - Log all authentication events with IP and user agent
-          - Dashboard shows active sessions per user
+- api-design.md
+- error-handling.md
+- authentication.md
         "#
       },
       {
         role: "user",
         message: #"
 Tool: ListMemories
-Input: {"domain": "engineering", "topic": "frontend"}
+Input: {"domain": "engineering", "topic": "security"}
 Output:
-Memories in engineering/frontend:
-- component-architecture.md
+Memories in engineering/security:
+- authentication-practices.md
+- encryption.md
         "#
       }
     ]
   }
 }
 
+test test_query_near_completion {
+  functions [QueryContext]
+  args {
+    query "What are our authentication best practices?"
+    contextTreeStructure #"
+      context_tree/
+      ├── engineering/
+      │   ├── backend/
+      │   │   ├── api-design.md
+      │   │   ├── error-handling.md
+      │   │   └── authentication.md
+      │   ├── frontend/
+      │   │   └── components.md
+      │   └── security/
+      │       ├── authentication-practices.md
+      │       └── encryption.md
+      └── product/
+          └── features/
+              └── onboarding.md
+    "#
+    messageHistory [
+      {
+        role: "user",
+        message: #"
+Tool: ListDomains
+Input: {}
+Output:
+Available domains:
+- engineering
+- product
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ListTopics
+Input: {"domain": "engineering"}
+Output:
+Topics in engineering domain:
+- backend
+- frontend
+- security
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ListMemories
+Input: {"domain": "engineering", "topic": "backend"}
+Output:
+Memories in engineering/backend:
+- api-design.md
+- error-handling.md
+- authentication.md
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ReadMemory
+Input: {"domain": "engineering", "topic": "backend", "filename": "authentication.md"}
+Output:
+# Authentication
+
+## JWT Implementation
+- Access tokens expire after 15 minutes
+- Refresh tokens valid for 7 days
+- Tokens stored in httpOnly cookies to prevent XSS attacks
+
+## Password Requirements
+- Minimum 12 characters
+- Must include uppercase, lowercase, numbers, and special characters
+- Hashed with bcrypt using 12 salt rounds
+
+## Session Management
+- Maximum 5 concurrent sessions per user
+- Automatic logout after 30 minutes of inactivity
+- Session data stored in Redis
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ReadMemory
+Input: {"domain": "engineering", "topic": "security", "filename": "authentication-practices.md"}
+Output:
+# Authentication Best Practices
+
+## Token Security
+- Use RS256 (asymmetric) for JWT signing
+- Rotate signing keys every 90 days
+- Include jti (JWT ID) for revocation support
+- Never expose private keys in client code
+
+## Multi-Factor Authentication
+- Mandatory for admin accounts
+- Optional for regular users
+- Support TOTP (Time-based One-Time Password)
+- Backup codes provided during MFA setup
+
+## Rate Limiting
+- Login endpoints: 5 attempts per 15 minutes
+- Account lockout after 5 failed attempts
+- Progressive delays on repeated failures
+- Email notification on suspicious activity
+        "#
+      }
+    ]
+  }
+}

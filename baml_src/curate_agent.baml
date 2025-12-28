@@ -1,125 +1,168 @@
 // Curate Agent - Analyzes content and stores it in the context tree
 // This agent is responsible for organizing and persisting knowledge.
 
-// CurateContext agent - analyzes content and stores it in the context tree
+// =============================================================================
+// TEMPLATE STRINGS - Reusable prompt sections
+// =============================================================================
+
+template_string CurateAgentIdentity() #"
+You are an agent that curates memories for the Bitranger memory management system.
+Memories are stored in a context tree, which is a hierarchical structure of domains and topics.
+
+Your task is to analyze the provided content and store it appropriately in the context tree.
+"#
+
+template_string CurateAvailableTools() #"
+## Available Tools
+
+- ListDomains: List all domains in the context tree
+- ListTopics: List topics within a specific domain
+- ListMemories: List memory files within a domain/topic
+- ReadMemory: Read the content of a specific memory file
+- ReadFile: Read source code files from the project codebase
+- WriteMemory: Write or update a memory file (action: "create" or "update")
+- Done: Signal that curation is complete
+"#
+
+template_string CurateContextTreeStructure(contextTreeStructure: string, domainHint: string?, topicHint: string?) #"
+## Context Tree Structure
+
+{{ contextTreeStructure }}
+
+{% if domainHint %}
+Domain Hint: {{ domainHint }}
+{% endif %}
+{% if topicHint %}
+Topic Hint: {{ topicHint }}
+{% endif %}
+"#
+
+template_string CurateInstructions() #"
+## Memory Management Decision Logic
+
+**Determine Action:**
+1. Check if a relevant memory file exists using ListMemories
+2. If a potentially relevant file exists, ReadMemory to examine its content
+3. Decide on action:
+   - **No relevant file exists** → WriteMemory with action="create"
+   - **Existing file has all details** → Call Done (no write needed)
+   - **Existing file is incomplete** → WriteMemory with action="update" (merge content)
+   - **Existing file conflicts with new content** → WriteMemory with action="update" (resolve conflict)
+
+**Critical Rules:**
+- **Check message history BEFORE calling any tool** - avoid redundant operations
+- Do NOT read the same memory file twice (if already read, use that information)
+- Do NOT re-list domains/topics if they're already in message history
+- Do NOT create a new file if updating existing one is more appropriate
+- Do NOT call Done without WriteMemory (unless content already exists and is complete)
+- ALWAYS merge existing context when updating (don't overwrite valuable information)
+
+**File Naming:**
+- Use kebab-case for filenames (e.g., "jwt-authentication.md")
+- Choose descriptive, specific names
+- Include the .md extension
+
+**Content Formatting:**
+- Format all content as clear, well-structured Markdown
+- Use proper headings (##, ###)
+- Include code blocks with language tags where appropriate
+- Organize information logically
+"#
+
+template_string CurateGoodExamples() #"
+## Efficient Tool Usage Patterns
+
+**Pattern for SIMPLE content** (e.g., "API uses JWT with 15-min expiry"):
+1. ListDomains → identify relevant category
+2. ListTopics (in that domain) → find appropriate topic
+3. ListMemories (in that topic) → check for existing related files
+4. If file exists: ReadMemory → assess completeness → WriteMemory (update) OR Done
+5. If no file: WriteMemory (create) → Done
+
+**Pattern for COMPLEX content** (e.g., detailed architecture document):
+1. ListDomains → identify target domain
+2. ListTopics → find appropriate topic
+3. ListMemories → identify candidate files
+4. ReadMemory (only most relevant file) → assess overlap/conflict
+5. WriteMemory (create new OR update existing) → Done
+"#
+
+template_string CurateMessageHistory(messageHistory: AgentMessage[]) #"
+{% if messageHistory %}
+## Previous Actions
+
+{% for msg in messageHistory %}
+{{ _.role(msg.role) }}
+{{ msg.message }}
+
+{% endfor %}
+{% endif %}
+"#
+
+template_string CurateUserRequest(content: string) #"
+{{ _.role("user") }}
+Content to curate:
+{{ content }}
+"#
+
+// =============================================================================
+// MAIN FUNCTION - Composes all template strings
+// =============================================================================
+
 function CurateContext(content: string, domainHint: string?, topicHint: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | WriteMemoryTool | CurateDoneTool {
   client CustomHaiku
   prompt #"
-    You are a context curation agent for the bitranger knowledge management system.
-    Your task is to analyze the provided content and store it appropriately in the context tree.
+    {{ CurateAgentIdentity() }}
 
-    ## Context Tree Structure
-    {{ contextTreeStructure }}
+    {{ CurateAvailableTools() }}
 
-    ## Your Available Tools
-    - ListDomains: List all domains in the context tree
-    - ListTopics: List topics within a specific domain
-    - ListMemories: List memory files within a domain/topic
-    - ReadMemory: Read the content of a specific memory file
-    - ReadFile: Read source code files from the project codebase
-    - WriteMemory: Write or update a memory file in the context tree
-    - Done: Signal that curation is complete
+    {{ CurateContextTreeStructure(contextTreeStructure, domainHint, topicHint) }}
 
-    ## CRITICAL INSTRUCTIONS - YOU MUST FOLLOW THESE STEPS:
-    
-    1. **Analyze the content** to understand what domain and topic it belongs to
-    2. **Explore the context tree** using ListDomains and ListTopics to understand the existing structure
-    3. **Choose the best location** - pick an existing domain/topic or determine if a new topic is needed
-    4. **YOU MUST CALL WriteMemory** - This is REQUIRED. You must create or update a memory file with the content
-       - Choose an appropriate filename (use kebab-case, e.g., "jwt-authentication.md")
-       - Format the content as clear, well-structured Markdown
-       - Include the original content with proper organization
-    5. **ONLY call Done AFTER you have successfully called WriteMemory**
-    
-    ⚠️  DO NOT call Done without first calling WriteMemory. The user expects their content to be saved.
+    {{ CurateInstructions() }}
 
-    {% if domainHint %}
-    Domain Hint: {{ domainHint }}
-    {% endif %}
-    {% if topicHint %}
-    Topic Hint: {{ topicHint }}
-    {% endif %}
+    {{ CurateGoodExamples() }}
 
-    ## Conversation History
-    {% if messageHistory %}
-    {% for msg in messageHistory %}
-    {{ _.role(msg.role) }}
-    {{ msg.message }}
+    {{ CurateMessageHistory(messageHistory) }}
 
-    {% endfor %}
-    {% endif %}
-
-    ## Efficient Tool Usage Examples
-
-    Good pattern for SIMPLE content (e.g., "API uses JWT"):
-    1. ListDomains → understand available categories
-    2. ListTopics (in relevant domain) → find or confirm appropriate topic
-    3. WriteMemory → directly create/update the memory file
-
-    Good pattern for COMPLEX content (e.g., detailed architecture):
-    1. ListDomains → explore high-level organization
-    2. ListTopics → identify relevant topic area
-    3. ListMemories (if topic exists) → check for existing related context
-    4. ReadMemory (if relevant file exists) → understand existing patterns
-    5. WriteMemory → create new or update existing file with merged knowledge
-
-    AVOID:
-    - Calling the same tool repeatedly with identical parameters
-    - Reading multiple unrelated memories before deciding on a topic
-    - Listing all domains/topics when hints are already provided
-    - Over-exploration for simple, straightforward content
-
-    For simple content, aim for 3-4 tool calls maximum before WriteMemory.
-    For complex content, 5-7 tool calls is reasonable.
-
-    {{ _.role("user") }}
-    Content to curate:
-    {{ content }}
+    {{ CurateUserRequest(content) }}
 
     {{ ctx.output_format }}
   "#
 }
 
-test curate_rate_limiting {
+// =============================================================================
+// TESTS
+// =============================================================================
+
+test test_curate_first_iteration {
+  functions [CurateContext]
+  args {
+    content "Our API uses Redis for caching with 1-hour TTL. The cache key format is 'cache:{resource}:{id}' and we use Redis SET with EX option."
+    contextTreeStructure #"
+      context_tree/
+      ├── engineering/
+      │   ├── backend/
+      │   │   └── authentication.md
+      │   └── frontend/
+      │       └── components.md
+      └── product/
+          └── features/
+              └── onboarding.md
+    "#
+    messageHistory []
+  }
+}
+
+test test_curate_mid_iteration {
   functions [CurateContext]
   args {
     content #"
-      # Rate Limiting Implementation
+      # Enhanced Rate Limiting
 
-      ## Overview
-      We've implemented a sophisticated rate limiting middleware to protect our API endpoints from abuse and ensure fair usage across all clients.
-
-      ## Implementation Details
-
-      ### Middleware Architecture
-      - Uses Redis as the backing store for rate limit counters
-      - Implements the token bucket algorithm for smooth rate limiting
-      - Supports per-user and per-IP rate limiting strategies
-
-      ### Configuration
-      ```python
-      RATE_LIMITS = {
-          'default': {'requests': 100, 'window': 60},  # 100 req/min
-          'authenticated': {'requests': 1000, 'window': 60},  # 1000 req/min
-          'premium': {'requests': 5000, 'window': 60}  # 5000 req/min
-      }
-      ```
-
-      ### Key Features
-      - Automatic tier detection based on user authentication
-      - Graceful degradation if Redis is unavailable (logs warnings but allows requests)
-      - Custom headers in responses: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
-      - Exponential backoff suggestions in 429 responses
-
-      ## Integration Points
-      - Applied globally via app middleware stack
-      - Exceptions for health check and metrics endpoints
-      - Integrates with monitoring system to track rate limit hits
-
-      ## Future Considerations
-      - Add support for burst allowances
-      - Implement per-endpoint custom limits
-      - Consider geographic rate limiting for certain endpoints
+      We're adding burst allowance to our existing rate limiting system:
+      - Burst allowance: 20 extra requests per minute for authenticated users
+      - Uses token bucket algorithm with refill rate
+      - Burst tokens reset every hour
     "#
     domainHint "engineering"
     topicHint "backend"
@@ -127,20 +170,13 @@ test curate_rate_limiting {
       context_tree/
       ├── engineering/
       │   ├── backend/
-      │   │   ├── api-design-principles.md
-      │   │   └── authentication-flow.md
-      │   ├── frontend/
-      │   │   └── component-architecture.md
-      │   └── infrastructure/
-      │       └── deployment-pipeline.md
-      ├── product/
-      │   ├── features/
-      │   │   └── user-onboarding.md
-      │   └── decisions/
-      │       └── pricing-model.md
-      └── operations/
-          └── runbooks/
-              └── incident-response.md
+      │   │   ├── authentication.md
+      │   │   └── rate-limiting.md
+      │   └── frontend/
+      │       └── components.md
+      └── product/
+          └── features/
+              └── onboarding.md
     "#
     messageHistory [
       {
@@ -152,7 +188,6 @@ Output:
 Available domains:
 - engineering
 - product
-- operations
         "#
       },
       {
@@ -164,7 +199,6 @@ Output:
 Topics in engineering domain:
 - backend
 - frontend
-- infrastructure
         "#
       },
       {
@@ -174,76 +208,172 @@ Tool: ListMemories
 Input: {"domain": "engineering", "topic": "backend"}
 Output:
 Memories in engineering/backend:
-- api-design-principles.md
-- authentication-flow.md
-        "#
-      },
-      {
-        role: "user",
-        message: #"
-Tool: ReadMemory
-Input: {"domain": "engineering", "topic": "backend", "filename": "api-design-principles.md"}
-Output:
-# API Design Principles
-
-## Core Principles
-
-### RESTful Design
-- Use standard HTTP methods (GET, POST, PUT, DELETE, PATCH)
-- Resource-oriented URLs (e.g., /users/123/orders)
-- Meaningful HTTP status codes
-
-### Versioning
-- API version in URL: /v1/users, /v2/users
-- Maintain backward compatibility for at least 2 major versions
-- Deprecation notices 6 months before removal
-
-### Error Handling
-- Consistent error response format:
-  ```json
-  {
-    "error": {
-      "code": "VALIDATION_ERROR",
-      "message": "Human-readable message",
-      "details": []
-    }
-  }
-  ```
-
-### Security
-- All endpoints require authentication unless explicitly public
-- Use JWT tokens for authentication
-- Implement CORS properly for web clients
-
-### Performance
-- Implement pagination for list endpoints (default: 20 items)
-- Use ETags for caching where appropriate
-- Compress responses with gzip
-
-## Request/Response Standards
-- Accept and return JSON by default
-- Use camelCase for field names
-- ISO 8601 format for dates and times
-- Include request IDs in responses for tracing
+- authentication.md
+- rate-limiting.md
         "#
       }
     ]
   }
 }
 
-test simple_curate_test {
+test test_curate_near_completion {
   functions [CurateContext]
   args {
-    content #"
-      Our API uses JWT with 15-min expiry
-    "#
+    content "We use bcrypt with 12 salt rounds for password hashing. Minimum password length is 12 characters."
+    domainHint "engineering"
+    topicHint "backend"
     contextTreeStructure #"
       context_tree/
-      ├── API/
-      ├── Architecture/
-      └── Frontend/
+      ├── engineering/
+      │   ├── backend/
+      │   │   ├── authentication.md
+      │   │   └── rate-limiting.md
+      │   └── frontend/
+      │       └── components.md
+      └── product/
+          └── features/
+              └── onboarding.md
     "#
-    messageHistory []
+    messageHistory [
+      {
+        role: "user",
+        message: #"
+Tool: ListDomains
+Input: {}
+Output:
+Available domains:
+- engineering
+- product
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ListTopics
+Input: {"domain": "engineering"}
+Output:
+Topics in engineering domain:
+- backend
+- frontend
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ListMemories
+Input: {"domain": "engineering", "topic": "backend"}
+Output:
+Memories in engineering/backend:
+- authentication.md
+- rate-limiting.md
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ReadMemory
+Input: {"domain": "engineering", "topic": "backend", "filename": "authentication.md"}
+Output:
+# Authentication
+
+## JWT Tokens
+- Access token expiry: 15 minutes
+- Refresh token expiry: 7 days
+- Stored in httpOnly cookies
+
+## OAuth Integration
+- Supports Google and GitHub OAuth
+- Uses passport.js library
+        "#
+      }
+    ]
   }
 }
 
+test test_curate_conflict_resolution {
+  functions [CurateContext]
+  args {
+    content #"
+      # Updated JWT Configuration
+
+      We've changed our JWT token expiry times for better security:
+      - Access token expiry: 30 minutes (changed from 15 minutes)
+      - Refresh token expiry: 14 days (changed from 7 days)
+      
+      Reason: Reduce the number of token refreshes while maintaining security.
+      This change was approved in the security review on Dec 2024.
+    "#
+    domainHint "engineering"
+    topicHint "backend"
+    contextTreeStructure #"
+      context_tree/
+      ├── engineering/
+      │   ├── backend/
+      │   │   ├── authentication.md
+      │   │   └── rate-limiting.md
+      │   └── frontend/
+      │       └── components.md
+      └── product/
+          └── features/
+              └── onboarding.md
+    "#
+    messageHistory [
+      {
+        role: "user",
+        message: #"
+Tool: ListDomains
+Input: {}
+Output:
+Available domains:
+- engineering
+- product
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ListTopics
+Input: {"domain": "engineering"}
+Output:
+Topics in engineering domain:
+- backend
+- frontend
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ListMemories
+Input: {"domain": "engineering", "topic": "backend"}
+Output:
+Memories in engineering/backend:
+- authentication.md
+- rate-limiting.md
+        "#
+      },
+      {
+        role: "user",
+        message: #"
+Tool: ReadMemory
+Input: {"domain": "engineering", "topic": "backend", "filename": "authentication.md"}
+Output:
+# Authentication
+
+## JWT Tokens
+- Access token expiry: 15 minutes
+- Refresh token expiry: 7 days
+- Stored in httpOnly cookies
+
+## OAuth Integration
+- Supports Google and GitHub OAuth
+- Uses passport.js library
+
+## Password Requirements
+- Minimum 12 characters
+- Must include uppercase, lowercase, numbers, and special characters
+- Hashed with bcrypt using 12 salt rounds
+        "#
+      }
+    ]
+  }
+}
