@@ -1,0 +1,48 @@
+{
+  "name": "bitranger",
+  "version": "0.1.0",
+  "description": "Local context management CLI for coding agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "bitranger": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src/baml_client"
+  ],
+  "scripts": {
+    "generate:baml": "baml-cli generate",
+    "build": "npm run generate:baml && tsup",
+    "dev": "npm run generate:baml && tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "cli",
+    "context",
+    "memory",
+    "ai",
+    "coding-agent",
+    "cursor",
+    "claude"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "@boundaryml/baml": "^0.215.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}
+
+

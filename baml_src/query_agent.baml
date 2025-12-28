@@ -2,7 +2,7 @@
 // This agent is responsible for finding and synthesizing knowledge.
 
 // QueryContext agent - retrieves relevant context from the context tree
-function QueryContext(query: string, domainFilter: string?, contextTreeStructure: string, toolResults: ToolResult[]) -> ListDomainsTool | ListTopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | QueryDoneTool {
+function QueryContext(query: string, domainFilter: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | QueryDoneTool {
   client CustomHaiku
   prompt #"
     You are a context retrieval agent for the bitranger knowledge management system.
@@ -31,13 +31,37 @@ function QueryContext(query: string, domainFilter: string?, contextTreeStructure
     Domain Filter: Focus your search on the "{{ domainFilter }}" domain
     {% endif %}
 
-    ## Previous Tool Results
-    {% for result in toolResults %}
-    Tool: {{ result.toolName }}
-    Input: {{ result.input }}
-    Output: {{ result.output }}
-    ---
+    ## Conversation History
+    {% if messageHistory %}
+    {% for msg in messageHistory %}
+    {{ _.role(msg.role) }}
+    {{ msg.message }}
+
     {% endfor %}
+    {% endif %}
+
+    ## Efficient Retrieval Patterns
+
+    Good pattern for SPECIFIC queries (e.g., "How does auth work?"):
+    1. ListDomains → identify likely domain (e.g., "API" or "Backend")
+    2. ListTopics → find relevant topic (e.g., "Authentication")
+    3. ReadMemory → read the specific file
+    4. Done → return results with summary
+
+    Good pattern for BROAD queries (e.g., "What are our coding standards?"):
+    1. ListDomains → identify multiple relevant domains
+    2. ListTopics (in each relevant domain) → find all related topics
+    3. ReadMemory (multiple targeted files) → gather comprehensive context
+    4. Done → synthesize a summary from all sources
+
+    AVOID:
+    - Reading every memory file in a topic when only one is relevant
+    - Exploring unrelated domains when the query is specific
+    - Calling Done before gathering sufficient context
+    - Re-listing domains/topics you've already seen
+
+    Aim for 4-6 tool calls for specific queries.
+    For broad queries, 8-12 tool calls is acceptable.
 
     {{ _.role("user") }}
     Query: {{ query }}
@@ -69,41 +93,49 @@ test query_authentication_system {
           └── runbooks/
               └── incident-response.md
     "#
-    toolResults [
+    messageHistory [
       {
-        toolName: "ListDomains",
-        input: "{}",
-        output: #"
-          Available domains:
-          - engineering
-          - product
-          - operations
+        role: "user",
+        message: #"
+Tool: ListDomains
+Input: {}
+Output:
+Available domains:
+- engineering
+- product
+- operations
         "#
       },
       {
-        toolName: "ListTopics",
-        input: #"{"domain": "engineering"}"#,
-        output: #"
-          Topics in engineering domain:
-          - backend
-          - frontend
-          - infrastructure
+        role: "user",
+        message: #"
+Tool: ListTopics
+Input: {"domain": "engineering"}
+Output:
+Topics in engineering domain:
+- backend
+- frontend
+- infrastructure
         "#
       },
       {
-        toolName: "ListMemories",
-        input: #"{"domain": "engineering", "topic": "backend"}"#,
-        output: #"
-          Memories in engineering/backend:
-          - api-design-principles.md
-          - authentication-flow.md
+        role: "user",
+        message: #"
+Tool: ListMemories
+Input: {"domain": "engineering", "topic": "backend"}
+Output:
+Memories in engineering/backend:
+- api-design-principles.md
+- authentication-flow.md
         "#
       },
       {
-        toolName: "ReadMemory",
-        input: #"{"domain": "engineering", "topic": "backend", "filename": "authentication-flow.md"}"#,
-        output: #"
-          # Authentication Flow
+        role: "user",
+        message: #"
+Tool: ReadMemory
+Input: {"domain": "engineering", "topic": "backend", "filename": "authentication-flow.md"}
+Output:
+# Authentication Flow
 
           ## Overview
           Our authentication system uses JWT (JSON Web Tokens) for stateless authentication across all API endpoints and services.
@@ -181,11 +213,13 @@ test query_authentication_system {
         "#
       },
       {
-        toolName: "ListMemories",
-        input: #"{"domain": "engineering", "topic": "frontend"}"#,
-        output: #"
-          Memories in engineering/frontend:
-          - component-architecture.md
+        role: "user",
+        message: #"
+Tool: ListMemories
+Input: {"domain": "engineering", "topic": "frontend"}
+Output:
+Memories in engineering/frontend:
+- component-architecture.md
         "#
       }
     ]

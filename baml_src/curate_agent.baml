@@ -2,7 +2,7 @@
 // This agent is responsible for organizing and persisting knowledge.
 
 // CurateContext agent - analyzes content and stores it in the context tree
-function CurateContext(content: string, domainHint: string?, topicHint: string?, contextTreeStructure: string, toolResults: ToolResult[]) -> ListDomainsTool | ListTopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | WriteMemoryTool | CurateDoneTool {
+function CurateContext(content: string, domainHint: string?, topicHint: string?, contextTreeStructure: string, messageHistory: AgentMessage[]) -> ListDomainsTool | ListTopicsTool | ListMemoriesTool | ReadMemoryTool | ReadFileTool | WriteMemoryTool | CurateDoneTool {
   client CustomHaiku
   prompt #"
     You are a context curation agent for the bitranger knowledge management system.
@@ -20,12 +20,18 @@ function CurateContext(content: string, domainHint: string?, topicHint: string?,
     - WriteMemory: Write or update a memory file in the context tree
     - Done: Signal that curation is complete
 
-    ## Instructions
-    1. Analyze the content to understand its topic and domain
-    2. Explore the existing context tree structure to find the best location
-    3. Check for existing related memories that might need updating
-    4. Write the content as a new memory or update an existing one
-    5. Call Done when curation is complete
+    ## CRITICAL INSTRUCTIONS - YOU MUST FOLLOW THESE STEPS:
+    
+    1. **Analyze the content** to understand what domain and topic it belongs to
+    2. **Explore the context tree** using ListDomains and ListTopics to understand the existing structure
+    3. **Choose the best location** - pick an existing domain/topic or determine if a new topic is needed
+    4. **YOU MUST CALL WriteMemory** - This is REQUIRED. You must create or update a memory file with the content
+       - Choose an appropriate filename (use kebab-case, e.g., "jwt-authentication.md")
+       - Format the content as clear, well-structured Markdown
+       - Include the original content with proper organization
+    5. **ONLY call Done AFTER you have successfully called WriteMemory**
+    
+    ⚠️  DO NOT call Done without first calling WriteMemory. The user expects their content to be saved.
 
     {% if domainHint %}
     Domain Hint: {{ domainHint }}
@@ -34,13 +40,37 @@ function CurateContext(content: string, domainHint: string?, topicHint: string?,
     Topic Hint: {{ topicHint }}
     {% endif %}
 
-    ## Previous Tool Results
-    {% for result in toolResults %}
-    Tool: {{ result.toolName }}
-    Input: {{ result.input }}
-    Output: {{ result.output }}
-    ---
+    ## Conversation History
+    {% if messageHistory %}
+    {% for msg in messageHistory %}
+    {{ _.role(msg.role) }}
+    {{ msg.message }}
+
     {% endfor %}
+    {% endif %}
+
+    ## Efficient Tool Usage Examples
+
+    Good pattern for SIMPLE content (e.g., "API uses JWT"):
+    1. ListDomains → understand available categories
+    2. ListTopics (in relevant domain) → find or confirm appropriate topic
+    3. WriteMemory → directly create/update the memory file
+
+    Good pattern for COMPLEX content (e.g., detailed architecture):
+    1. ListDomains → explore high-level organization
+    2. ListTopics → identify relevant topic area
+    3. ListMemories (if topic exists) → check for existing related context
+    4. ReadMemory (if relevant file exists) → understand existing patterns
+    5. WriteMemory → create new or update existing file with merged knowledge
+
+    AVOID:
+    - Calling the same tool repeatedly with identical parameters
+    - Reading multiple unrelated memories before deciding on a topic
+    - Listing all domains/topics when hints are already provided
+    - Over-exploration for simple, straightforward content
+
+    For simple content, aim for 3-4 tool calls maximum before WriteMemory.
+    For complex content, 5-7 tool calls is reasonable.
 
     {{ _.role("user") }}
     Content to curate:
@@ -112,84 +142,108 @@ test curate_rate_limiting {
           └── runbooks/
               └── incident-response.md
     "#
-    toolResults [
+    messageHistory [
       {
-        toolName: "ListDomains",
-        input: "{}",
-        output: #"
-          Available domains:
-          - engineering
-          - product
-          - operations
+        role: "user",
+        message: #"
+Tool: ListDomains
+Input: {}
+Output:
+Available domains:
+- engineering
+- product
+- operations
         "#
       },
       {
-        toolName: "ListTopics",
-        input: #"{"domain": "engineering"}"#,
-        output: #"
-          Topics in engineering domain:
-          - backend
-          - frontend
-          - infrastructure
+        role: "user",
+        message: #"
+Tool: ListTopics
+Input: {"domain": "engineering"}
+Output:
+Topics in engineering domain:
+- backend
+- frontend
+- infrastructure
         "#
       },
       {
-        toolName: "ListMemories",
-        input: #"{"domain": "engineering", "topic": "backend"}"#,
-        output: #"
-          Memories in engineering/backend:
-          - api-design-principles.md
-          - authentication-flow.md
+        role: "user",
+        message: #"
+Tool: ListMemories
+Input: {"domain": "engineering", "topic": "backend"}
+Output:
+Memories in engineering/backend:
+- api-design-principles.md
+- authentication-flow.md
         "#
       },
       {
-        toolName: "ReadMemory",
-        input: #"{"domain": "engineering", "topic": "backend", "filename": "api-design-principles.md"}"#,
-        output: #"
-          # API Design Principles
+        role: "user",
+        message: #"
+Tool: ReadMemory
+Input: {"domain": "engineering", "topic": "backend", "filename": "api-design-principles.md"}
+Output:
+# API Design Principles
 
-          ## Core Principles
+## Core Principles
 
-          ### RESTful Design
-          - Use standard HTTP methods (GET, POST, PUT, DELETE, PATCH)
-          - Resource-oriented URLs (e.g., /users/123/orders)
-          - Meaningful HTTP status codes
+### RESTful Design
+- Use standard HTTP methods (GET, POST, PUT, DELETE, PATCH)
+- Resource-oriented URLs (e.g., /users/123/orders)
+- Meaningful HTTP status codes
 
-          ### Versioning
-          - API version in URL: /v1/users, /v2/users
-          - Maintain backward compatibility for at least 2 major versions
-          - Deprecation notices 6 months before removal
+### Versioning
+- API version in URL: /v1/users, /v2/users
+- Maintain backward compatibility for at least 2 major versions
+- Deprecation notices 6 months before removal
 
-          ### Error Handling
-          - Consistent error response format:
-            ```json
-            {
-              "error": {
-                "code": "VALIDATION_ERROR",
-                "message": "Human-readable message",
-                "details": []
-              }
-            }
-            ```
+### Error Handling
+- Consistent error response format:
+  ```json
+  {
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "Human-readable message",
+      "details": []
+    }
+  }
+  ```
 
-          ### Security
-          - All endpoints require authentication unless explicitly public
-          - Use JWT tokens for authentication
-          - Implement CORS properly for web clients
+### Security
+- All endpoints require authentication unless explicitly public
+- Use JWT tokens for authentication
+- Implement CORS properly for web clients
 
-          ### Performance
-          - Implement pagination for list endpoints (default: 20 items)
-          - Use ETags for caching where appropriate
-          - Compress responses with gzip
+### Performance
+- Implement pagination for list endpoints (default: 20 items)
+- Use ETags for caching where appropriate
+- Compress responses with gzip
 
-          ## Request/Response Standards
-          - Accept and return JSON by default
-          - Use camelCase for field names
-          - ISO 8601 format for dates and times
-          - Include request IDs in responses for tracing
+## Request/Response Standards
+- Accept and return JSON by default
+- Use camelCase for field names
+- ISO 8601 format for dates and times
+- Include request IDs in responses for tracing
         "#
       }
     ]
+  }
+}
+
+test simple_curate_test {
+  functions [CurateContext]
+  args {
+    content #"
+      Our API uses JWT with 15-min expiry
+    "#
+    contextTreeStructure #"
+      context_tree/
+      ├── API/
+      ├── Architecture/
+      └── Frontend/
+    "#
+    messageHistory []
   }
 }
 

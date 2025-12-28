@@ -1,0 +1,75 @@
+import { Command } from 'commander';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { ContextTreeStore } from '../contextTree/ContextTreeStore.js';
+
+export function initCommand(program: Command) {
+  program
+    .command('init')
+    .description('Initialize bitranger in the current repository')
+    .option('--path <path>', 'Repository root path', process.cwd())
+    .option('--project-name <name>', 'Project name')
+    .option('--domains <list>', 'Comma-separated list of default domains')
+    .option('--gitignore', 'Add .bitranger to .gitignore', true)
+    .option('--no-gitignore', 'Do not add .bitranger to .gitignore')
+    .action(async (options) => {
+      try {
+        const store = new ContextTreeStore(options.path);
+
+        // Check if already initialized
+        if (await store.isInitialized()) {
+          console.error('Error: bitranger is already initialized in this repository');
+          process.exit(1);
+        }
+
+        // Parse domains
+        const defaultDomains = options.domains
+          ? options.domains.split(',').map((d: string) => d.trim())
+          : ['Architecture', 'API', 'Frontend'];
+
+        // Initialize
+        await store.initialize({
+          projectName: options.projectName,
+          gitTracking: false,
+          contextTree: {
+            autoOrganize: true,
+            defaultDomains,
+          },
+        });
+
+        // Add to .gitignore if requested
+        if (options.gitignore) {
+          const gitignorePath = path.join(options.path, '.gitignore');
+          try {
+            let gitignoreContent = '';
+            try {
+              gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
+            } catch {
+              // File doesn't exist, that's fine
+            }
+
+            if (!gitignoreContent.includes('.bitranger')) {
+              const newContent = gitignoreContent
+                ? `${gitignoreContent.trimEnd()}\n\n# bitranger context tree\n.bitranger/\n`
+                : '# bitranger context tree\n.bitranger/\n';
+              await fs.writeFile(gitignorePath, newContent, 'utf-8');
+            }
+          } catch (error) {
+            console.warn('Warning: Could not update .gitignore');
+          }
+        }
+
+        console.log(`✓ Initialized bitranger in ${options.path}`);
+        console.log(`✓ Created context tree structure at .bitranger/`);
+        console.log(`✓ Configuration saved to .bitranger/config.json`);
+        console.log('');
+        console.log('Your context tree is ready! Start curating with:');
+        console.log('  bitranger curate "your context here"');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Error: ${errorMessage}`);
+        process.exit(1);
+      }
+    });
+}
+

@@ -5,11 +5,10 @@
 // SHARED TYPES
 // =============================================================================
 
-// Result from executing a tool, passed back to the agent
-class ToolResult {
-  toolName string @description("Name of the tool that was executed")
-  input string @description("The input that was passed to the tool")
-  output string @description("The output from executing the tool")
+// Message in the conversation history between agent and system
+class AgentMessage {
+  role "user" | "assistant" @description("The role of the message sender")
+  message string @description("The message content")
 }
 
 // Retrieved context piece for query results
