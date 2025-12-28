@@ -167,7 +167,7 @@ export class AgentRunner {
           writtenFiles.push({
             domain: writeReq.domain,
             topic: writeReq.topic,
-            filename: writeReq.filename,
+            filename: 'context.md',
             action: writeReq.action,
           });
         }

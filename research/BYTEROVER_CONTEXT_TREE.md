@@ -39,7 +39,8 @@ Context Tree
 
 **Context Files**
 - Markdown documents containing actual knowledge content
-- Stored at the topic level
+- Stored at the topic level as `context.md`
+- In bitranger, the filename is always `context.md` and is implicit in all operations - agents specify only domain/topic/subtopic
 - Contain the actual context information agents retrieve
 
 ### 1.3 Key Design Principles

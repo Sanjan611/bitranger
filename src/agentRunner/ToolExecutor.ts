@@ -4,9 +4,9 @@ type ListDomainsTool = { toolName: 'ListDomains' };
 type ListTopicsTool = { toolName: 'ListTopics'; domain: string };
 type ListSubtopicsTool = { toolName: 'ListSubtopics'; domain: string; topic: string };
 type ListMemoriesTool = { toolName: 'ListMemories'; domain: string; topic: string; subtopic?: string | null };
-type ReadMemoryTool = { toolName: 'ReadMemory'; domain: string; topic: string; filename: string; subtopic?: string | null };
+type ReadMemoryTool = { toolName: 'ReadMemory'; domain: string; topic: string; subtopic?: string | null };
 type ReadFileTool = { toolName: 'ReadFile'; path: string };
-type WriteMemoryTool = { toolName: 'WriteMemory'; action: 'create' | 'update'; domain: string; topic: string; filename: string; content: string; subtopic?: string | null };
+type WriteMemoryTool = { toolName: 'WriteMemory'; action: 'create' | 'update'; domain: string; topic: string; content: string; subtopic?: string | null };
 type CurateDoneTool = { toolName: 'Done' };
 type QueryDoneTool = { toolName: 'Done'; results?: any[]; summary?: string };
 export type ToolResult = { toolName: string; input: string; output: string };
@@ -75,10 +75,10 @@ export class ToolExecutor {
 
         case 'ReadMemory': {
           const t = tool as ReadMemoryTool;
-          const content = await this.store.readMemory(t.domain, t.topic, t.filename, t.subtopic || undefined);
+          const content = await this.store.readMemory(t.domain, t.topic, 'context.md', t.subtopic || undefined);
           return {
             toolName,
-            input: JSON.stringify({ domain: t.domain, topic: t.topic, filename: t.filename, subtopic: t.subtopic }),
+            input: JSON.stringify({ domain: t.domain, topic: t.topic, subtopic: t.subtopic }),
             output: content,
           };
         }
@@ -95,15 +95,14 @@ export class ToolExecutor {
 
         case 'WriteMemory': {
           const t = tool as WriteMemoryTool;
-          await this.store.writeMemory(t.domain, t.topic, t.filename, t.content, t.subtopic || undefined);
-          const location = t.subtopic ? `${t.domain}/${t.topic}/${t.subtopic}/${t.filename}` : `${t.domain}/${t.topic}/${t.filename}`;
+          await this.store.writeMemory(t.domain, t.topic, 'context.md', t.content, t.subtopic || undefined);
+          const location = t.subtopic ? `${t.domain}/${t.topic}/${t.subtopic}/context.md` : `${t.domain}/${t.topic}/context.md`;
           return {
             toolName,
             input: JSON.stringify({
               action: t.action,
               domain: t.domain,
               topic: t.topic,
-              filename: t.filename,
               subtopic: t.subtopic,
             }),
             output: `Successfully ${t.action === 'create' ? 'created' : 'updated'} memory: ${location}`,

@@ -27,6 +27,8 @@ All knowledge is stored in files named `context.md`:
 
 This standardization simplifies navigation and ensures consistency.
 
+**Note:** The filename `context.md` is implicit and enforced at the tool layer. Agents work with domain/topic/subtopic organization only, without needing to specify the filename.
+
 ### 3. Relations: Graph-Like Navigation
 
 Relations create explicit connections between context files using the `@domain/topic` or `@domain/topic/subtopic` notation. These enable:
@@ -168,6 +170,8 @@ Solutions to known issues and problems.
 ---
 
 ## context.md File Structure
+
+Every topic and subtopic in the context tree contains a standardized `context.md` file. Agents interact with these files using only the domain/topic/subtopic path - the filename is implicit.
 
 ### Basic Format
 

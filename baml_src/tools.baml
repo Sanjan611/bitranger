@@ -51,11 +51,11 @@ class ListMemoriesTool {
 }
 
 // Tool to read the content of a specific memory file from the context tree
+// Reads the standard context.md file at the topic or subtopic level
 class ReadMemoryTool {
   toolName "ReadMemory"
   domain string @description("The domain containing the memory")
   topic string @description("The topic containing the memory")
-  filename string @description("The memory filename to read")
   subtopic string? @description("Optional subtopic containing the memory")
 }
 
@@ -70,14 +70,13 @@ class ReadFileTool {
 // =============================================================================
 
 // Tool to write or update a memory file in the context tree
-// IMPORTANT: Always use "context.md" as the filename (not custom filenames)
+// Writes to the standard context.md file at the topic or subtopic level
 // Content should include a ## Relations section at the end with @domain/topic/subtopic references
 class WriteMemoryTool {
   toolName "WriteMemory"
   action "create" | "update" @description("Whether to create a new memory file or update an existing one")
   domain string @description("The target domain for the memory")
   topic string @description("The target topic within the domain")
-  filename string @description("The memory filename - should always be 'context.md'")
   content string @description("The markdown content to write, including ## Relations section if applicable")
   subtopic string? @description("Optional subtopic within the topic for deeper organization (max 1 level)")
 }

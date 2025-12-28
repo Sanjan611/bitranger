@@ -58,9 +58,8 @@ template_string CurateInstructions() #"
 - Do NOT call Done without WriteMemory (unless content already exists and is complete)
 - ALWAYS merge existing context when updating (don't overwrite valuable information)
 
-**File Naming:**
-- **ALWAYS use "context.md" as the filename** (not custom filenames like "jwt-authentication.md")
-- Each topic has its own context.md file
+**Hierarchical Organization:**
+- Each topic has a context.md file (implicit, no need to specify filename)
 - Each subtopic (if used) also has its own context.md file
 - Use subtopics for deeper organization (maximum 1 level deep)
 
@@ -106,7 +105,7 @@ template_string CurateGoodExamples() #"
 2. ListTopics (in that domain) → find appropriate topic
 3. ListMemories (in that topic) → check for context.md at topic level
 4. If context.md exists: ReadMemory → assess completeness → WriteMemory (update) OR Done
-5. If no context.md: WriteMemory (create with filename="context.md") → Done
+5. If no context.md: WriteMemory (create) → Done
 
 **Pattern for COMPLEX content** (e.g., detailed architecture document):
 1. ListDomains → identify target domain
@@ -121,7 +120,7 @@ template_string CurateGoodExamples() #"
 2. Check if topic-level context.md exists (ListMemories without subtopic)
 3. If creating subtopic-specific content:
    - ListSubtopics → check existing subtopics
-   - WriteMemory with subtopic parameter and filename="context.md"
+   - WriteMemory with subtopic parameter
 4. Note: Both topic and subtopic can have their own context.md files
 
 **Example with both levels:**
@@ -322,7 +321,7 @@ Memories in code_style/authentication:
         role: "user",
         message: #"
 Tool: ReadMemory
-Input: {"domain": "code_style", "topic": "authentication", "filename": "context.md"}
+Input: {"domain": "code_style", "topic": "authentication"}
 Output:
 # Authentication
 
@@ -408,7 +407,7 @@ Memories in code_style/authentication:
         role: "user",
         message: #"
 Tool: ReadMemory
-Input: {"domain": "code_style", "topic": "authentication", "filename": "context.md"}
+Input: {"domain": "code_style", "topic": "authentication"}
 Output:
 # Authentication
 

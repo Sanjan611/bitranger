@@ -326,7 +326,7 @@ Memories in code_style/authentication:
         role: "user",
         message: #"
 Tool: ReadMemory
-Input: {"domain": "code_style", "topic": "authentication", "filename": "context.md"}
+Input: {"domain": "code_style", "topic": "authentication"}
 Output:
 # Authentication
 
@@ -354,7 +354,7 @@ Output:
         role: "user",
         message: #"
 Tool: ReadMemory
-Input: {"domain": "compliance", "topic": "security", "filename": "context.md"}
+Input: {"domain": "compliance", "topic": "security"}
 Output:
 # Security Best Practices
 
